@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>モノにこころをあずけておりまして — Poster Maker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Shippori+Mincho:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --cream: #F4EFE4;
+      --ink: #2C2A26;
+      --line: #e2dccd;
+      --panel: #fbf8f1;
+      --muted: #8b8477;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif;
+      color: var(--ink);
+      background: #efe9dc;
+      display: flex;
+      min-height: 100%;
+    }
+
+    #app {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    #stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #canvasWrap {
+      position: relative;
+      box-shadow: 0 18px 50px rgba(60, 50, 30, .18);
+      line-height: 0;
+    }
+
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 82vh;
+      width: auto;
+      height: auto;
+      touch-action: none;
+      cursor: crosshair;
+      background: var(--cream);
+    }
+
+    #hint {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(251, 248, 241, .85);
+      padding: 6px 14px;
+      border-radius: 20px;
+      pointer-events: none;
+      white-space: nowrap;
+      letter-spacing: .04em;
+      transition: opacity .4s;
+    }
+
+    #panel {
+      width: 340px;
+      flex: none;
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      padding: 24px 22px 40px;
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+
+    .brand {
+      margin: 0 0 2px;
+      font-family: "Shippori Mincho", serif;
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: .04em;
+    }
+
+    .brand small {
+      display: block;
+      font-size: 11px;
+      letter-spacing: .02em;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    h2 {
+      font-size: 12px;
+      letter-spacing: .14em;
+      color: var(--muted);
+      margin: 26px 0 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-family: "Cormorant Garamond", serif;
+    }
+
+    .seg {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .seg button,
+    .sizes button {
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 8px;
+      cursor: pointer;
+      transition: .15s;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .sizes {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sizes button {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sizes button .dim {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-family: "Cormorant Garamond", serif;
+    }
+
+    .seg button.active,
+    .sizes button.active {
+      border-color: var(--ink);
+      box-shadow: inset 0 0 0 1px var(--ink);
+    }
+
+    .seg button:hover,
+    .sizes button:hover {
+      border-color: #c9c1ad;
+    }
+
+    .swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .swatch {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform .12s;
+    }
+
+    .swatch:hover {
+      transform: scale(1.08);
+    }
+
+    .swatch.active {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--ink);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--ink);
+    }
+
+    .val {
+      font-size: 11px;
+      color: var(--muted);
+      width: 34px;
+      text-align: right;
+      font-family: "Cormorant Garamond", serif;
+    }
+
+    #lineWidthRow {
+      display: none;
+      margin-top: 10px;
+    }
+
+    #lineWidthRow.show {
+      display: flex;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .actions button {
+      font-family: inherit;
+      font-size: 12.5px;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: #fff;
+      transition: .15s;
+    }
+
+    .actions button:hover {
+      border-color: #c9c1ad;
+    }
+
+    #dlBtn {
+      grid-column: 1/3;
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+      padding: 13px;
+      font-size: 13px;
+      letter-spacing: .05em;
+    }
+
+    #dlBtn:hover {
+      opacity: .88;
+    }
+
+    details {
+      margin-top: 12px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-size: 12px;
+      letter-spacing: .12em;
+      color: var(--muted);
+      font-family: "Cormorant Garamond", serif;
+      text-transform: uppercase;
+      font-weight: 600;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::before {
+      content: "＋ ";
+    }
+
+    details[open] summary::before {
+      content: "− ";
+    }
+
+    .field {
+      margin: 12px 0;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 5px;
+      letter-spacing: .03em;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      resize: vertical;
+    }
+
+    .field textarea {
+      line-height: 1.5;
+    }
+
+    .note {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin: 10px 0 0;
+    }
+
+    @media (max-width:820px) {
+      #app {
+        flex-direction: column;
+      }
+
+      #panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--line);
+        max-height: none;
+        order: 2;
+      }
+
+      #stage {
+        order: 1;
+        padding: 16px;
+      }
+
+      canvas {
+        max-height: 64vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="stage">
+      <div id="canvasWrap">
+        <canvas id="c"></canvas>
+        <div id="hint">画面をなぞって かたちを描く</div>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <h1 class="brand">「モノにこころをあずけておりまして」展
+        <small>共通のカラーと文字組みはそのまま。<br>あなたのかたちと色で、告知をつくる。</small>
+      </h1>
+
+      <h2>Size / サイズ</h2>
+      <div class="sizes" id="sizes"></div>
+
+      <h2>Draw / 描き方</h2>
+      <div class="seg" id="drawmode">
+        <button data-mode="fill" class="active">面（塗り）</button>
+        <button data-mode="line">線</button>
+      </div>
+      <div class="slider-row" id="lineWidthRow">
+        <input type="range" id="lineW" min="1" max="16" value="5" />
+        <span class="val" id="lineWVal">5</span>
+      </div>
+
+      <h2>Fill / 塗り</h2>
+      <div class="seg" id="fillmode">
+        <button data-mode="shape" class="active">かたちに色</button>
+        <button data-mode="background">背景に色</button>
+      </div>
+
+      <h2>Color / いろ</h2>
+      <div class="swatches" id="swatches"></div>
+
+      <h2>Blur / ぼかし</h2>
+      <div class="slider-row">
+        <input type="range" id="blur" min="0" max="100" value="0" />
+        <span class="val" id="blurVal">0</span>
+      </div>
+      <p class="note">なぞり終えると、かたちが自ずと ぼやけていきます。<br>好きなところで画面をタップすると 止まります。</p>
+
+      <h2>Actions</h2>
+      <div class="actions">
+        <button id="redrawBtn">描き直す</button>
+        <button id="stopBtn">ぼかしを止める</button>
+        <button id="dlBtn">画像を書き出す（PNG）</button>
+      </div>
+
+      <details>
+        <summary>Text / 文字を編集</summary>
+        <div class="field">
+          <label>キッカー（小さな前書き）</label>
+          <textarea id="t_kicker" rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label>主題（縦書き・改行で列送り）</label>
+          <textarea id="t_title" rows="4"></textarea>
+        </div>
+        <div class="field">
+          <label>会期</label>
+          <input id="t_year" placeholder="2026" />
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <input id="t_d1" style="flex:1" />
+            <input id="t_d2" style="flex:1" />
+          </div>
+          <input id="t_time" style="margin-top:8px" />
+          <label style="margin-top:8px">補足（改行で複数行）</label>
+          <textarea id="t_notes" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label>会場</label>
+          <input id="t_venue" />
+          <input id="t_url" style="margin-top:8px" />
+          <input id="t_access" style="margin-top:8px" />
+        </div>
+        <div class="field">
+          <label>主催</label>
+          <input id="t_host" />
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const CREAM = "#F4EFE4";
+      const INK = "#2C2A26";
+      const SERIF = '"Cormorant Garamond", Georgia, serif';
+      const MINCHO = '"Shippori Mincho","Hiragino Mincho ProN",serif';
+
+      const PALETTE = [
+        { name: "珊瑚", hex: "#C75C5C" },
+        { name: "空", hex: "#A6CFE3" },
+        { name: "桜", hex: "#F1C4D1" },
+        { name: "陽", hex: "#EFD884" },
+        { name: "若草", hex: "#A9C56C" },
+        { name: "藤", hex: "#C9C6E4" },
+        { name: "墨", hex: "#3B3A38" },
+      ];
+
+      const SIZES = [
+        { id: "poster", label: "ポスター 縦", sub: "B/A 比・印刷", w: 1240, h: 1754 },
+        { id: "poster_s", label: "ポスター 小 縦", sub: "軽量プレビュー", w: 868, h: 1228 },
+        { id: "ig_post", label: "Instagram 投稿", sub: "正方形", w: 1080, h: 1080 },
+        { id: "ig_story", label: "Instagram ストーリー", sub: "9:16 縦長", w: 1080, h: 1920 },
+        { id: "ig_port", label: "Instagram 縦型投稿", sub: "4:5", w: 1080, h: 1350 },
+      ];
+
+      const DEFAULT_TEXT = {
+        kicker: "科研費基盤B\n「モノの主観的価値のダイナミクスを基盤とした循環型経済のインタラクションデザイン」\n最終成果報告展",
+        title: "モノに\nこころを\nあづけて\nおりまして",
+        year: "2026",
+        d1: "7.31 fri",
+        d2: "8.2 sun",
+        time: "10:00 – 19:00",
+        notes: "8/1 はレセプション 20:00 まで\n8/2 は 15:00 まで",
+        venue: "Bababa",
+        url: "https://bababa.jp",
+        access: "高田馬場駅から徒歩5分",
+        host: "主催：ソンヨンア ＋ Affective Design Lab",
+      };
+
+      const state = {
+        size: SIZES[0],
+        color: PALETTE[0].hex,
+        fillMode: "shape",   // 'shape' | 'background'
+        drawMode: "fill",    // 'fill' | 'line'
+        lineW: 0.005,        // stroke width as fraction of W
+        points: [],
+        phase: "idle",       // idle | drawing | blurring | done
+        blur: 0,
+        maxBlur: 0,
+        text: { ...DEFAULT_TEXT },
+      };
+
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const hint = document.getElementById("hint");
+      let raf = null;
+
+      function applySize() {
+        canvas.width = state.size.w;
+        canvas.height = state.size.h;
+        state.maxBlur = state.size.w * 0.075;
+        render();
+      }
+
+      // ---------- colour helpers ----------
+      function lum(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      }
+      function inkOn(bg) { return lum(bg) < 0.5 ? CREAM : INK; }
+
+      // ---------- shape path ----------
+      function tracePath(c, pts, close) {
+        c.beginPath();
+        c.moveTo(pts[0].x, pts[0].y);
+        if (pts.length < 3) {
+          c.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+        } else {
+          for (let i = 1; i < pts.length - 1; i++) {
+            const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+            c.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+          }
+          const last = pts[pts.length - 1];
+          if (close) {
+            c.quadraticCurveTo(last.x, last.y, pts[0].x, pts[0].y);
+            c.closePath();
+          } else {
+            c.lineTo(last.x, last.y);
+          }
+        }
+      }
+
+      function drawShape(c) {
+        const pts = state.points;
+        if (pts.length < 2) return;
+        const paint = state.fillMode === "background" ? CREAM : state.color;
+        c.save();
+        if (state.blur > 0.2) c.filter = `blur(${state.blur}px)`;
+        if (state.drawMode === "line") {
+          c.strokeStyle = paint;
+          c.lineWidth = Math.max(2, state.lineW * canvas.width);
+          c.lineCap = "round"; c.lineJoin = "round";
+          tracePath(c, pts, false);
+          c.stroke();
+        } else if (pts.length < 3) {
+          c.strokeStyle = paint;
+          c.lineWidth = Math.max(6, canvas.width * 0.02);
+          c.lineCap = "round"; c.lineJoin = "round";
+          tracePath(c, pts, false);
+          c.stroke();
+        } else {
+          c.fillStyle = paint;
+          tracePath(c, pts, true);
+          c.fill();
+        }
+        c.restore();
+      }
+
+      // ---------- typography ----------
+      function setLS(v) { try { ctx.letterSpacing = v; } catch (e) { } }
+
+      function wrap(text, maxW) {
+        const out = []; let cur = "";
+        for (const ch of [...text]) {
+          if (cur && ctx.measureText(cur + ch).width > maxW) { out.push(cur); cur = ch; }
+          else cur += ch;
+        }
+        if (cur) out.push(cur);
+        return out;
+      }
+
+      function render() {
+        const W = canvas.width, H = canvas.height;
+        const bg = state.fillMode === "background" ? state.color : CREAM;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        drawShape(ctx);
+
+        if (state.points.length === 0 && state.phase === "idle") {
+          ctx.save();
+          ctx.fillStyle = "rgba(120,112,96,.28)";
+          ctx.font = `${Math.round(W * 0.02)}px ${MINCHO}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("ここに かたちを 描く", W / 2, H * 0.52);
+          ctx.restore();
+        }
+
+        drawText(W, H);
+      }
+
+      function drawText(W, H) {
+        const m = W * 0.062;
+        const bg = state.fillMode === "background" ? state.color : CREAM;
+        const col = inkOn(bg);
+        const T = state.text;
+        ctx.fillStyle = col;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+
+        // ----- TOP cluster: kicker → vertical main title -----
+        let y = m * 0.72;
+
+        // kicker (small, wrapped)
+        if (T.kicker.trim()) {
+          const kSize = W * 0.0135;
+          ctx.font = `400 ${kSize}px ${MINCHO}`;
+          setLS(`${kSize * 0.02}px`);
+          const kl = wrap(T.kicker, W * 0.56);
+          kl.forEach(ln => { ctx.fillText(ln, m, y); y += kSize * 1.65; });
+          setLS("0px");
+          y += W * 0.03;
+        }
+
+        // vertical main title (columns read right-to-left)
+        const cols = T.title.split("\n").filter(s => s !== "");
+        if (cols.length) {
+          const vSize = W * 0.050;
+          const vStep = vSize * 1.55;
+          const colStep = vSize * 1.62;
+          const N = cols.length;
+          ctx.font = `500 ${vSize}px ${MINCHO}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          setLS("0px");
+          const topY = y;
+          for (let i = 0; i < N; i++) {
+            const colX = m + (N - 1 - i) * colStep + vSize * 0.5;
+            let cy = topY;
+            for (const ch of [...cols[i]]) {
+              ctx.fillText(ch, colX, cy);
+              cy += vStep;
+            }
+          }
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+        }
+
+        // ----- BOTTOM-LEFT: venue + host -----
+        const venSize = W * 0.030, urlSize = W * 0.016, accSize = W * 0.019, hostSize = W * 0.019;
+        const venLH = venSize * 1.3, urlLH = urlSize * 1.5, accLH = accSize * 1.55, hostLH = hostSize * 1.5;
+        const gapL = W * 0.024;
+        const blTotal = venLH + urlLH + accLH + gapL + hostLH;
+        let by = (H - m) - blTotal;
+        ctx.font = `400 ${venSize}px ${SERIF}`;
+        setLS(`${venSize * 0.02}px`);
+        ctx.fillText(T.venue, m, by); by += venLH;
+        setLS("0px");
+        ctx.font = `400 ${urlSize}px ${SERIF}`;
+        ctx.fillText(T.url, m, by); by += urlLH;
+        ctx.font = `400 ${accSize}px ${MINCHO}`;
+        ctx.fillText(T.access, m, by); by += accLH + gapL;
+        ctx.font = `400 ${hostSize}px ${MINCHO}`;
+        ctx.fillText(T.host, m, by);
+
+        // ----- BOTTOM-RIGHT: date block -----
+        const dx = W * 0.605;
+        const yearSize = W * 0.017, bigSize = W * 0.05, smSize = W * 0.0155, noteSize = W * 0.015;
+        const yearLH = yearSize * 1.4, bigLH = bigSize * 1.02, sepLH = bigSize * 0.55;
+        const gapD = W * 0.02, smLH = smSize * 1.5, noteLH = noteSize * 1.55;
+        const notes = T.notes.split("\n").filter(s => s !== "");
+        const drTotal = yearLH + bigLH + sepLH + bigLH + gapD + smLH + notes.length * noteLH;
+        let dy = (H - m) - drTotal;
+
+        if (T.year.trim()) {
+          ctx.font = `400 ${yearSize}px ${SERIF}`;
+          setLS(`${yearSize * 0.12}px`);
+          ctx.fillText(T.year, dx, dy);
+          setLS("0px");
+        }
+        dy += yearLH;
+
+        drawBigDate(dx, dy, T.d1, bigSize, col); dy += bigLH;
+        ctx.fillStyle = col;
+        ctx.fillRect(dx + bigSize * 0.04, dy + sepLH * 0.15, Math.max(1.4, W * 0.0016), sepLH * 0.62);
+        dy += sepLH;
+        drawBigDate(dx, dy, T.d2, bigSize, col); dy += bigLH + gapD;
+
+        ctx.fillStyle = col;
+        ctx.font = `400 ${smSize}px ${SERIF}`;
+        ctx.fillText(T.time, dx, dy); dy += smLH;
+        ctx.font = `400 ${noteSize}px ${MINCHO}`;
+        notes.forEach(ln => { ctx.fillText(ln, dx, dy); dy += noteLH; });
+      }
+
+      function drawBigDate(x, y, str, bigSize, col) {
+        const parts = str.trim().split(/\s+/);
+        const num = parts[0];
+        const suf = parts.slice(1).join(" ");
+        ctx.fillStyle = col;
+        ctx.font = `400 ${bigSize}px ${SERIF}`;
+        ctx.textBaseline = "alphabetic";
+        const baseline = y + bigSize * 0.82;
+        ctx.fillText(num, x, baseline);
+        if (suf) {
+          const w = ctx.measureText(num).width;
+          ctx.font = `400 ${bigSize * 0.34}px ${SERIF}`;
+          ctx.fillText(suf, x + w + bigSize * 0.10, baseline);
+        }
+        ctx.textBaseline = "top";
+      }
+
+      // ---------- pointer ----------
+      function toCanvas(e) {
+        const r = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - r.left) * (canvas.width / r.width),
+          y: (e.clientY - r.top) * (canvas.height / r.height)
+        };
+      }
+
+      canvas.addEventListener("pointerdown", e => {
+        canvas.setPointerCapture(e.pointerId);
+        if (state.phase === "blurring") { stopBlur(); return; }
+        state.points = [toCanvas(e)];
+        state.phase = "drawing";
+        state.blur = 0;
+        syncBlurUI();
+        hideHint();
+        render();
+      });
+      canvas.addEventListener("pointermove", e => {
+        if (state.phase !== "drawing") return;
+        const p = toCanvas(e);
+        const last = state.points[state.points.length - 1];
+        if (!last || Math.hypot(p.x - last.x, p.y - last.y) > canvas.width * 0.004) {
+          state.points.push(p);
+          render();
+        }
+      });
+      function endStroke() {
+        if (state.phase !== "drawing") return;
+        if (state.points.length < 2) { state.phase = "idle"; render(); return; }
+        state.phase = "blurring";
+        cancelAnimationFrame(raf);
+        const step = state.maxBlur / 150;
+        const tick = () => {
+          if (state.phase !== "blurring") return;
+          state.blur = Math.min(state.maxBlur, state.blur + step);
+          syncBlurUI();
+          render();
+          if (state.blur >= state.maxBlur) { state.phase = "done"; return; }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        showHint("好きなところで タップして 止める");
+      }
+      canvas.addEventListener("pointerup", endStroke);
+      canvas.addEventListener("pointercancel", endStroke);
+
+      function stopBlur() {
+        if (state.phase === "blurring") {
+          cancelAnimationFrame(raf);
+          state.phase = "done";
+          showHint("できあがり。書き出せます");
+          render();
+        }
+      }
+
+      function showHint(txt) { hint.textContent = txt; hint.style.opacity = 1; }
+      function hideHint() { hint.style.opacity = 0; }
+
+      // ---------- controls ----------
+      const sizesEl = document.getElementById("sizes");
+      SIZES.forEach((s, i) => {
+        const b = document.createElement("button");
+        b.innerHTML = `<span>${s.label}<br><span class="dim" style="font-family:${MINCHO}">${s.sub}</span></span><span class="dim">${s.w}×${s.h}</span>`;
+        if (i === 0) b.classList.add("active");
+        b.onclick = () => {
+          [...sizesEl.children].forEach(x => x.classList.remove("active"));
+          b.classList.add("active");
+          state.size = s;
+          state.points = []; state.phase = "idle"; state.blur = 0;
+          syncBlurUI(); applySize();
+          showHint("画面をなぞって かたちを描く");
+        };
+        sizesEl.appendChild(b);
+      });
+
+      document.querySelectorAll("#drawmode button").forEach(b => {
+        b.onclick = () => {
+          document.querySelectorAll("#drawmode button").forEach(x => x.classList.remove("active"));
+          b.classList.add("active");
+          state.drawMode = b.dataset.mode;
+          document.getElementById("lineWidthRow").classList.toggle("show", state.drawMode === "line");
+          render();
+        };
+      });
+      const lineWEl = document.getElementById("lineW");
+      const lineWVal = document.getElementById("lineWVal");
+      lineWEl.oninput = () => {
+        state.lineW = lineWEl.value / 1000;
+        lineWVal.textContent = lineWEl.value;
+        render();
+      };
+
+      const swEl = document.getElementById("swatches");
+      PALETTE.forEach((p, i) => {
+        const s = document.createElement("div");
+        s.className = "swatch" + (i === 0 ? " active" : "");
+        s.style.background = p.hex; s.title = p.name;
+        s.onclick = () => {
+          [...swEl.children].forEach(x => x.classList.remove("active"));
+          s.classList.add("active");
+          state.color = p.hex; render();
+        };
+        swEl.appendChild(s);
+      });
+
+      document.querySelectorAll("#fillmode button").forEach(b => {
+        b.onclick = () => {
+          document.querySelectorAll("#fillmode button").forEach(x => x.classList.remove("active"));
+          b.classList.add("active");
+          state.fillMode = b.dataset.mode; render();
+        };
+      });
+
+      const blurEl = document.getElementById("blur");
+      const blurVal = document.getElementById("blurVal");
+      function syncBlurUI() {
+        const pct = state.maxBlur ? Math.round(state.blur / state.maxBlur * 100) : 0;
+        blurEl.value = pct; blurVal.textContent = pct;
+      }
+      blurEl.oninput = () => {
+        cancelAnimationFrame(raf);
+        if (state.phase === "blurring" || state.phase === "drawing") state.phase = "done";
+        state.blur = (blurEl.value / 100) * state.maxBlur;
+        blurVal.textContent = blurEl.value;
+        render();
+      };
+
+      document.getElementById("redrawBtn").onclick = () => {
+        cancelAnimationFrame(raf);
+        state.points = []; state.phase = "idle"; state.blur = 0;
+        syncBlurUI(); render();
+        showHint("画面をなぞって かたちを描く");
+      };
+      document.getElementById("stopBtn").onclick = stopBlur;
+      document.getElementById("dlBtn").onclick = () => {
+        render();
+        const a = document.createElement("a");
+        a.download = `mono-ni-kokoro_${state.size.id}.png`;
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+      };
+
+      // ---------- text editing ----------
+      const bind = (id, key) => {
+        const el = document.getElementById(id);
+        el.value = state.text[key];
+        el.addEventListener("input", () => { state.text[key] = el.value; render(); });
+      };
+      ["t_kicker:kicker", "t_title:title", "t_year:year", "t_d1:d1", "t_d2:d2",
+        "t_time:time", "t_notes:notes", "t_venue:venue", "t_url:url", "t_access:access", "t_host:host"]
+        .forEach(pair => { const [id, key] = pair.split(":"); bind(id, key); });
+
+      // ---------- fonts, then go ----------
+      applySize();
+      if (document.fonts && document.fonts.ready) {
+        Promise.all([
+          document.fonts.load('300 40px "Cormorant Garamond"'),
+          document.fonts.load('400 40px "Cormorant Garamond"'),
+          document.fonts.load('500 40px "Cormorant Garamond"'),
+          document.fonts.load('400 40px "Shippori Mincho"'),
+          document.fonts.load('500 40px "Shippori Mincho"'),
+          document.fonts.load('600 40px "Shippori Mincho"'),
+        ]).then(render).catch(render);
+        document.fonts.ready.then(render);
+      }
+    })();
+  </script>
+</body>
+
+</html>

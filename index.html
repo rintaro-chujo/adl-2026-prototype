@@ -64,6 +64,7 @@
       display: block;
       max-width: 100%;
       max-height: 82vh;
+      max-height: 82dvh;
       width: auto;
       height: auto;
       touch-action: none;
@@ -95,6 +96,7 @@
       padding: 24px 22px 40px;
       overflow-y: auto;
       max-height: 100vh;
+      max-height: 100dvh;
     }
 
     .brand {
@@ -339,15 +341,83 @@
         border-top: 1px solid var(--line);
         max-height: none;
         order: 2;
+        padding: 18px 16px calc(44px + env(safe-area-inset-bottom));
       }
 
       #stage {
         order: 1;
-        padding: 16px;
+        padding: 14px 14px 10px;
+        flex: none;
+        height: 62vh;
+        height: 62dvh;
       }
 
       canvas {
-        max-height: 64vh;
+        max-height: calc(62vh - 24px);
+        max-height: calc(62dvh - 24px);
+        max-width: calc(100vw - 28px);
+      }
+
+      #hint {
+        font-size: 11px;
+        bottom: 10px;
+      }
+
+      .brand {
+        font-size: 16px;
+      }
+
+      h2 {
+        margin: 22px 0 10px;
+      }
+
+      /* サイズ選択は横スクロールのチップに */
+      .sizes {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+
+      .sizes::-webkit-scrollbar {
+        display: none;
+      }
+
+      .sizes button {
+        flex: 0 0 auto;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        min-height: 44px;
+        white-space: nowrap;
+      }
+
+      /* タッチターゲットを 44px 以上に */
+      .seg button,
+      .actions button {
+        min-height: 44px;
+        padding: 12px 10px;
+      }
+
+      #dlBtn {
+        min-height: 50px;
+      }
+
+      .swatch {
+        width: 44px;
+        height: 44px;
+      }
+
+      input[type=range] {
+        height: 32px;
+      }
+
+      .field input,
+      .field textarea {
+        font-size: 16px;
+        /* iOS のフォーカスズームを防ぐ */
       }
     }
   </style>
@@ -562,14 +632,24 @@
       // ---------- typography ----------
       function setLS(v) { try { ctx.letterSpacing = v; } catch (e) { } }
 
-      function wrap(text, maxW) {
-        const out = []; let cur = "";
-        for (const ch of [...text]) {
-          if (cur && ctx.measureText(cur + ch).width > maxW) { out.push(cur); cur = ch; }
-          else cur += ch;
+      // 禁則処理つき文字折り返し（\n の手動改行は保持）
+      const NO_START = "、。，．・：；？！ー〜…‥）」』】〕〉》ぁぃぅぇぉっゃゅょゎんゝゞ々";
+      const NO_END = "（「『【〔〈《";
+      function wrapJa(text, maxW) {
+        const lines = [];
+        for (const seg of text.split("\n")) {
+          let cur = "";
+          for (const ch of [...seg]) {
+            const over = cur && ctx.measureText(cur + ch).width > maxW;
+            if (over && !NO_START.includes(ch) && !NO_END.includes(cur[cur.length - 1])) {
+              lines.push(cur); cur = ch;
+            } else {
+              cur += ch;
+            }
+          }
+          if (cur !== "") lines.push(cur);
         }
-        if (cur) out.push(cur);
-        return out;
+        return lines;
       }
 
       function render() {
@@ -594,7 +674,9 @@
       }
 
       function drawText(W, H) {
-        const m = W * 0.062;
+        // 正方形〜縦長まで破綻しないよう、スケール単位 S は幅と高さの両方から決める
+        const S = Math.min(W, H * 0.78);
+        const m = S * 0.075;
         const bg = state.fillMode === "background" ? state.color : CREAM;
         const col = inkOn(bg);
         const T = state.text;
@@ -602,73 +684,72 @@
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
 
-        // ----- TOP cluster: kicker → vertical main title -----
-        let y = m * 0.72;
-
-        // kicker (small, wrapped)
+        // ----- TOP: kicker（小さな前書き・禁則つき折り返し） -----
+        let y = m * 0.85;
         if (T.kicker.trim()) {
-          const kSize = W * 0.0135;
+          const kSize = S * 0.0155;
           ctx.font = `400 ${kSize}px ${MINCHO}`;
-          setLS(`${kSize * 0.02}px`);
-          const kl = wrap(T.kicker, W * 0.56);
-          kl.forEach(ln => { ctx.fillText(ln, m, y); y += kSize * 1.65; });
+          setLS(`${kSize * 0.08}px`);
+          const kl = wrapJa(T.kicker, W - m * 2);
+          kl.forEach(ln => { ctx.fillText(ln, m, y); y += kSize * 1.95; });
           setLS("0px");
-          y += W * 0.03;
+          y += S * 0.048;
         }
 
-        // vertical main title (columns read right-to-left)
+        // ----- 縦書き主題（列は右から左へ） -----
         const cols = T.title.split("\n").filter(s => s !== "");
         if (cols.length) {
-          const vSize = W * 0.050;
-          const vStep = vSize * 1.55;
-          const colStep = vSize * 1.62;
+          const vSize = S * 0.058;
+          const vStep = vSize * 1.62;   // 字送り：ゆったり
+          const colStep = vSize * 1.92; // 列送り：字送りより広く
           const N = cols.length;
           ctx.font = `500 ${vSize}px ${MINCHO}`;
           ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          setLS("0px");
-          const topY = y;
           for (let i = 0; i < N; i++) {
             const colX = m + (N - 1 - i) * colStep + vSize * 0.5;
-            let cy = topY;
+            let cy = y;
             for (const ch of [...cols[i]]) {
               ctx.fillText(ch, colX, cy);
               cy += vStep;
             }
           }
           ctx.textAlign = "left";
-          ctx.textBaseline = "top";
         }
 
-        // ----- BOTTOM-LEFT: venue + host -----
-        const venSize = W * 0.030, urlSize = W * 0.016, accSize = W * 0.019, hostSize = W * 0.019;
-        const venLH = venSize * 1.3, urlLH = urlSize * 1.5, accLH = accSize * 1.55, hostLH = hostSize * 1.5;
-        const gapL = W * 0.024;
+        // ----- BOTTOM-LEFT: 会場・主催 -----
+        const venSize = S * 0.034, urlSize = S * 0.018, accSize = S * 0.021, hostSize = S * 0.021;
+        const venLH = venSize * 1.35, urlLH = urlSize * 1.7, accLH = accSize * 1.7, hostLH = hostSize * 1.6;
+        const gapL = S * 0.03;
         const blTotal = venLH + urlLH + accLH + gapL + hostLH;
         let by = (H - m) - blTotal;
         ctx.font = `400 ${venSize}px ${SERIF}`;
-        setLS(`${venSize * 0.02}px`);
+        setLS(`${venSize * 0.04}px`);
         ctx.fillText(T.venue, m, by); by += venLH;
         setLS("0px");
         ctx.font = `400 ${urlSize}px ${SERIF}`;
+        setLS(`${urlSize * 0.05}px`);
         ctx.fillText(T.url, m, by); by += urlLH;
+        setLS("0px");
         ctx.font = `400 ${accSize}px ${MINCHO}`;
+        setLS(`${accSize * 0.06}px`);
         ctx.fillText(T.access, m, by); by += accLH + gapL;
         ctx.font = `400 ${hostSize}px ${MINCHO}`;
+        setLS(`${hostSize * 0.06}px`);
         ctx.fillText(T.host, m, by);
+        setLS("0px");
 
-        // ----- BOTTOM-RIGHT: date block -----
-        const dx = W * 0.605;
-        const yearSize = W * 0.017, bigSize = W * 0.05, smSize = W * 0.0155, noteSize = W * 0.015;
-        const yearLH = yearSize * 1.4, bigLH = bigSize * 1.02, sepLH = bigSize * 0.55;
-        const gapD = W * 0.02, smLH = smSize * 1.5, noteLH = noteSize * 1.55;
+        // ----- BOTTOM-RIGHT: 会期 -----
+        const dx = W - m - S * 0.335;
+        const yearSize = S * 0.019, bigSize = S * 0.056, smSize = S * 0.018, noteSize = S * 0.0165;
+        const yearLH = yearSize * 1.6, bigLH = bigSize * 1.06, sepLH = bigSize * 0.6;
+        const gapD = S * 0.024, smLH = smSize * 1.7, noteLH = noteSize * 1.75;
         const notes = T.notes.split("\n").filter(s => s !== "");
         const drTotal = yearLH + bigLH + sepLH + bigLH + gapD + smLH + notes.length * noteLH;
         let dy = (H - m) - drTotal;
 
         if (T.year.trim()) {
           ctx.font = `400 ${yearSize}px ${SERIF}`;
-          setLS(`${yearSize * 0.12}px`);
+          setLS(`${yearSize * 0.18}px`);
           ctx.fillText(T.year, dx, dy);
           setLS("0px");
         }
@@ -676,15 +757,19 @@
 
         drawBigDate(dx, dy, T.d1, bigSize, col); dy += bigLH;
         ctx.fillStyle = col;
-        ctx.fillRect(dx + bigSize * 0.04, dy + sepLH * 0.15, Math.max(1.4, W * 0.0016), sepLH * 0.62);
+        ctx.fillRect(dx + bigSize * 0.05, dy + sepLH * 0.16, Math.max(1.4, S * 0.0016), sepLH * 0.62);
         dy += sepLH;
         drawBigDate(dx, dy, T.d2, bigSize, col); dy += bigLH + gapD;
 
         ctx.fillStyle = col;
         ctx.font = `400 ${smSize}px ${SERIF}`;
+        setLS(`${smSize * 0.08}px`);
         ctx.fillText(T.time, dx, dy); dy += smLH;
+        setLS("0px");
         ctx.font = `400 ${noteSize}px ${MINCHO}`;
+        setLS(`${noteSize * 0.04}px`);
         notes.forEach(ln => { ctx.fillText(ln, dx, dy); dy += noteLH; });
+        setLS("0px");
       }
 
       function drawBigDate(x, y, str, bigSize, col) {
@@ -714,7 +799,7 @@
       }
 
       canvas.addEventListener("pointerdown", e => {
-        canvas.setPointerCapture(e.pointerId);
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
         if (state.phase === "blurring") { stopBlur(); return; }
         state.points = [toCanvas(e)];
         state.phase = "drawing";
@@ -842,10 +927,15 @@
       document.getElementById("stopBtn").onclick = stopBlur;
       document.getElementById("dlBtn").onclick = () => {
         render();
-        const a = document.createElement("a");
-        a.download = `mono-ni-kokoro_${state.size.id}.png`;
-        a.href = canvas.toDataURL("image/png");
-        a.click();
+        canvas.toBlob(blob => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.download = `mono-ni-kokoro_${state.size.id}.png`;
+          a.href = url;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }, "image/png");
       };
 
       // ---------- text editing ----------

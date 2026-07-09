@@ -133,6 +133,15 @@
       gap: 8px;
     }
 
+    .seg.seg3 {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .seg.seg3 button {
+      text-align: center;
+      padding: 10px 4px;
+    }
+
     .seg button,
     .sizes button {
       font-family: inherit;
@@ -440,10 +449,36 @@
       <h2>Size / サイズ</h2>
       <div class="sizes" id="sizes"></div>
 
+      <h2>Photo / 写真</h2>
+      <div class="actions" style="margin-top:0">
+        <button id="photoBtn">写真を選ぶ／撮る</button>
+        <button id="photoRemoveBtn">写真を消す</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" hidden />
+      <div id="photoCtrls" style="display:none">
+        <div class="slider-row" style="margin-top:12px">
+          <span class="val" style="width:56px;text-align:left;font-family:inherit">拡大</span>
+          <input type="range" id="pScale" min="100" max="400" value="100" />
+          <span class="val" id="pScaleVal">100</span>
+        </div>
+        <div class="slider-row" style="margin-top:8px">
+          <span class="val" style="width:56px;text-align:left;font-family:inherit">ぼかし</span>
+          <input type="range" id="pBlur" min="0" max="100" value="0" />
+          <span class="val" id="pBlurVal">0</span>
+        </div>
+        <div class="slider-row" style="margin-top:8px">
+          <span class="val" style="width:56px;text-align:left;font-family:inherit">ベール</span>
+          <input type="range" id="pVeil" min="0" max="90" value="25" />
+          <span class="val" id="pVeilVal">25</span>
+        </div>
+        <p class="note">「写真移動」を選ぶと、ドラッグで移動・ピンチで拡大できます。<br>ベールは写真に地色を薄くかけて、文字となじませます。</p>
+      </div>
+
       <h2>Draw / 描き方</h2>
-      <div class="seg" id="drawmode">
+      <div class="seg seg3" id="drawmode">
         <button data-mode="fill" class="active">面（塗り）</button>
         <button data-mode="line">線</button>
+        <button data-mode="photo">写真移動</button>
       </div>
       <div class="slider-row" id="lineWidthRow">
         <input type="range" id="lineW" min="1" max="16" value="5" />
@@ -459,12 +494,12 @@
       <h2>Color / いろ</h2>
       <div class="swatches" id="swatches"></div>
 
-      <h2>Blur / ぼかし</h2>
+      <h2>Blur / かたちのぼかし</h2>
       <div class="slider-row">
         <input type="range" id="blur" min="0" max="100" value="0" />
         <span class="val" id="blurVal">0</span>
       </div>
-      <p class="note">なぞり終えると、かたちが自ずと ぼやけていきます。<br>好きなところで画面をタップすると 止まります。</p>
+      <p class="note">なぞり終えると、かたちが自ずと ぼやけていきます。<br>好きなところで画面をタップすると 止まります。<br>写真のぼかしは「写真」の項で、それぞれ独立に調整できます。</p>
 
       <h2>Actions</h2>
       <div class="actions">
@@ -553,12 +588,14 @@
         size: SIZES[0],
         color: PALETTE[0].hex,
         fillMode: "shape",   // 'shape' | 'background'
-        drawMode: "fill",    // 'fill' | 'line'
+        tool: "fill",        // ポインタの役割: 'fill' | 'line' | 'photo'
+        shapeMode: "fill",   // 描いたかたちの描画スタイル: 'fill' | 'line'
         lineW: 0.005,        // stroke width as fraction of W
         points: [],
         phase: "idle",       // idle | drawing | blurring | done
         blur: 0,
         maxBlur: 0,
+        photo: { img: null, scale: 1, ox: 0, oy: 0, blur: 0, veil: 0.25 },
         text: { ...DEFAULT_TEXT },
       };
 
@@ -603,13 +640,39 @@
         }
       }
 
+      // ---------- background photo ----------
+      function drawPhoto(c) {
+        const ph = state.photo;
+        if (!ph.img) return;
+        const W = canvas.width, H = canvas.height;
+        const iw = ph.img.width, ih = ph.img.height;
+        const s = Math.max(W / iw, H / ih) * ph.scale;
+        const dw = iw * s, dh = ih * s;
+        const cx = W / 2 + ph.ox, cy = H / 2 + ph.oy;
+        const b = ph.blur * state.maxBlur;
+        c.save();
+        if (b > 0.2) c.filter = `blur(${b}px)`;
+        // ぼかしで端が透けないよう、少し大きめに描く
+        const pad = b * 1.5;
+        c.drawImage(ph.img, cx - dw / 2 - pad, cy - dh / 2 - pad, dw + pad * 2, dh + pad * 2);
+        c.restore();
+        // ベール：地色を薄くかけて文字となじませる
+        if (ph.veil > 0) {
+          c.save();
+          c.globalAlpha = ph.veil;
+          c.fillStyle = state.fillMode === "background" ? state.color : CREAM;
+          c.fillRect(0, 0, W, H);
+          c.restore();
+        }
+      }
+
       function drawShape(c) {
         const pts = state.points;
         if (pts.length < 2) return;
         const paint = state.fillMode === "background" ? CREAM : state.color;
         c.save();
         if (state.blur > 0.2) c.filter = `blur(${state.blur}px)`;
-        if (state.drawMode === "line") {
+        if (state.shapeMode === "line") {
           c.strokeStyle = paint;
           c.lineWidth = Math.max(2, state.lineW * canvas.width);
           c.lineCap = "round"; c.lineJoin = "round";
@@ -659,9 +722,10 @@
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, W, H);
 
+        drawPhoto(ctx);
         drawShape(ctx);
 
-        if (state.points.length === 0 && state.phase === "idle") {
+        if (state.points.length === 0 && state.phase === "idle" && !state.photo.img) {
           ctx.save();
           ctx.fillStyle = "rgba(120,112,96,.28)";
           ctx.font = `${Math.round(W * 0.02)}px ${MINCHO}`;
@@ -798,8 +862,16 @@
         };
       }
 
+      // 写真移動ツール用: アクティブなポインタを追跡（ピンチ対応）
+      const activePtrs = new Map();
+
       canvas.addEventListener("pointerdown", e => {
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
+        if (state.tool === "photo" && state.photo.img) {
+          activePtrs.set(e.pointerId, toCanvas(e));
+          hideHint();
+          return;
+        }
         if (state.phase === "blurring") { stopBlur(); return; }
         state.points = [toCanvas(e)];
         state.phase = "drawing";
@@ -809,6 +881,35 @@
         render();
       });
       canvas.addEventListener("pointermove", e => {
+        if (state.tool === "photo" && state.photo.img && activePtrs.has(e.pointerId)) {
+          const p = toCanvas(e);
+          const ph = state.photo;
+          if (activePtrs.size === 2) {
+            // ピンチ: 2点の距離比で拡大縮小、中点を支点に
+            const ids = [...activePtrs.keys()];
+            const otherId = ids[0] === e.pointerId ? ids[1] : ids[0];
+            const other = activePtrs.get(otherId);
+            const prev = activePtrs.get(e.pointerId);
+            const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
+            const d1 = Math.hypot(p.x - other.x, p.y - other.y);
+            if (d0 > 0) {
+              const r = Math.min(4 / ph.scale, Math.max(0.35 / ph.scale, d1 / d0));
+              const mx = (p.x + other.x) / 2, my = (p.y + other.y) / 2;
+              const pcx = canvas.width / 2 + ph.ox, pcy = canvas.height / 2 + ph.oy;
+              ph.ox = mx + (pcx - mx) * r - canvas.width / 2;
+              ph.oy = my + (pcy - my) * r - canvas.height / 2;
+              ph.scale = Math.min(4, Math.max(0.35, ph.scale * r));
+              syncPhotoUI();
+            }
+          } else {
+            const prev = activePtrs.get(e.pointerId);
+            ph.ox += p.x - prev.x;
+            ph.oy += p.y - prev.y;
+          }
+          activePtrs.set(e.pointerId, p);
+          render();
+          return;
+        }
         if (state.phase !== "drawing") return;
         const p = toCanvas(e);
         const last = state.points[state.points.length - 1];
@@ -817,7 +918,8 @@
           render();
         }
       });
-      function endStroke() {
+      function endStroke(e) {
+        if (e && activePtrs.has(e.pointerId)) { activePtrs.delete(e.pointerId); return; }
         if (state.phase !== "drawing") return;
         if (state.points.length < 2) { state.phase = "idle"; render(); return; }
         state.phase = "blurring";
@@ -860,6 +962,7 @@
           b.classList.add("active");
           state.size = s;
           state.points = []; state.phase = "idle"; state.blur = 0;
+          state.photo.ox = 0; state.photo.oy = 0; // 比率が変わるので写真は中央に戻す
           syncBlurUI(); applySize();
           showHint("画面をなぞって かたちを描く");
         };
@@ -868,13 +971,109 @@
 
       document.querySelectorAll("#drawmode button").forEach(b => {
         b.onclick = () => {
+          const mode = b.dataset.mode;
+          if (mode === "photo" && !state.photo.img) {
+            // 写真がまだなければ選択ダイアログへ
+            document.getElementById("photoInput").click();
+            return;
+          }
           document.querySelectorAll("#drawmode button").forEach(x => x.classList.remove("active"));
           b.classList.add("active");
-          state.drawMode = b.dataset.mode;
-          document.getElementById("lineWidthRow").classList.toggle("show", state.drawMode === "line");
+          state.tool = mode;
+          if (mode !== "photo") state.shapeMode = mode; // 既存のかたちも面⇄線で切替
+          document.getElementById("lineWidthRow").classList.toggle("show", mode === "line");
+          if (mode === "photo") showHint("ドラッグで移動・ピンチで拡大");
           render();
         };
       });
+
+      // ---------- photo controls ----------
+      const photoInput = document.getElementById("photoInput");
+      const photoCtrls = document.getElementById("photoCtrls");
+      const pScale = document.getElementById("pScale"), pScaleVal = document.getElementById("pScaleVal");
+      const pBlur = document.getElementById("pBlur"), pBlurVal = document.getElementById("pBlurVal");
+      const pVeil = document.getElementById("pVeil"), pVeilVal = document.getElementById("pVeilVal");
+
+      function syncPhotoUI() {
+        pScale.value = Math.round(state.photo.scale * 100);
+        pScaleVal.textContent = pScale.value;
+        pBlur.value = Math.round(state.photo.blur * 100);
+        pBlurVal.textContent = pBlur.value;
+        pVeil.value = Math.round(state.photo.veil * 100);
+        pVeilVal.textContent = pVeil.value;
+      }
+
+      function selectTool(mode) {
+        const btn = document.querySelector(`#drawmode button[data-mode="${mode}"]`);
+        document.querySelectorAll("#drawmode button").forEach(x => x.classList.remove("active"));
+        btn.classList.add("active");
+        state.tool = mode;
+        if (mode !== "photo") state.shapeMode = mode;
+        document.getElementById("lineWidthRow").classList.toggle("show", mode === "line");
+      }
+
+      document.getElementById("photoBtn").onclick = () => photoInput.click();
+
+      photoInput.onchange = async e => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        let img = null;
+        try {
+          img = await createImageBitmap(f, { imageOrientation: "from-image" });
+        } catch (err) {
+          img = await new Promise((res, rej) => {
+            const u = URL.createObjectURL(f);
+            const im = new Image();
+            im.onload = () => res(im);
+            im.onerror = rej;
+            im.src = u;
+          }).catch(() => null);
+        }
+        photoInput.value = "";
+        if (!img) return;
+        // 大きすぎる写真は縮小してパフォーマンスを確保
+        const MAXDIM = 2400;
+        if (Math.max(img.width, img.height) > MAXDIM) {
+          const r = MAXDIM / Math.max(img.width, img.height);
+          const oc = document.createElement("canvas");
+          oc.width = Math.round(img.width * r);
+          oc.height = Math.round(img.height * r);
+          oc.getContext("2d").drawImage(img, 0, 0, oc.width, oc.height);
+          img = oc;
+        }
+        state.photo.img = img;
+        state.photo.scale = 1;
+        state.photo.ox = 0;
+        state.photo.oy = 0;
+        photoCtrls.style.display = "block";
+        syncPhotoUI();
+        selectTool("photo");
+        showHint("ドラッグで移動・ピンチで拡大");
+        render();
+      };
+
+      document.getElementById("photoRemoveBtn").onclick = () => {
+        state.photo.img = null;
+        photoCtrls.style.display = "none";
+        if (state.tool === "photo") selectTool("fill");
+        render();
+      };
+
+      pScale.oninput = () => {
+        state.photo.scale = pScale.value / 100;
+        pScaleVal.textContent = pScale.value;
+        render();
+      };
+      pBlur.oninput = () => {
+        state.photo.blur = pBlur.value / 100;
+        pBlurVal.textContent = pBlur.value;
+        render();
+      };
+      pVeil.oninput = () => {
+        state.photo.veil = pVeil.value / 100;
+        pVeilVal.textContent = pVeil.value;
+        render();
+      };
       const lineWEl = document.getElementById("lineW");
       const lineWVal = document.getElementById("lineWVal");
       lineWEl.oninput = () => {

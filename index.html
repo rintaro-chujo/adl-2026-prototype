@@ -588,7 +588,7 @@
 
       async function buildFontCss(allText) {
         const families = [
-          ["Cormorant Infant", "500;700"],
+          ["Cormorant Infant", "400;500;700"],
           ["Shippori Mincho", "400;500;700"],
         ];
         let css = "";
@@ -627,9 +627,12 @@
         root.setAttribute("width", size.w);
         root.setAttribute("height", size.h);
         const styleEl = root.querySelector("style");
-        // Adobe Fonts 由来（ATC-…）は Shippori Mincho にフォールバック
+        // ATC-… は Illustrator の合成フォント。グリフ単位のフォールバックで
+        // 欧文・数字 → Cormorant Infant、和文 → Shippori Mincho に振り分ける
+        // （Cormorant に無いグリフだけが Shippori に落ちる）。太字はタイトル等が
+        // SVG 側で明示する font-weight:700 のみ。
         styleEl.textContent = FONTCSS + styleEl.textContent
-          .replace(/font-family:\s*ATC-[^;]+;/g, "font-family:'Shippori Mincho',serif;");
+          .replace(/font-family:\s*ATC-[^;]+;/g, "font-family:'Cormorant Infant','Shippori Mincho',serif;");
 
         // "somehow…" を分離して、ベースと可動テキストの2枚に
         const baseRoot = root.cloneNode(true);

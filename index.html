@@ -487,6 +487,8 @@
         <span id="paperPx" class="dim"></span>
       </div>
 
+      <!-- 【写真機能：一時的に非表示】あとで復活させる。HTML と、下部の
+           「photo controls」JS ブロック、drawmode の「写真移動」ボタンをまとめて有効化すること。
       <h2>Photo / 写真</h2>
       <div class="actions" style="margin-top:0">
         <button id="photoBtn">写真を選ぶ／撮る</button>
@@ -511,12 +513,15 @@
         </div>
         <p class="note">「写真移動」を選ぶと、ドラッグで移動・ピンチで拡大できます。<br>ベールは写真に地色を薄くかけて、文字となじませます。</p>
       </div>
+      -->
 
       <h2>Draw / 描き方</h2>
-      <div class="seg seg3" id="drawmode">
+      <div class="seg" id="drawmode">
         <button data-mode="fill" class="active">面（塗り）</button>
         <button data-mode="line">線</button>
+        <!-- 【写真機能：一時的に非表示】復活時に戻す
         <button data-mode="photo">写真移動</button>
+        -->
       </div>
       <div class="slider-row" id="lineWidthRow">
         <input type="range" id="lineW" min="1" max="16" value="5" />
@@ -537,7 +542,7 @@
         <input type="range" id="blur" min="0" max="100" value="0" />
         <span class="val" id="blurVal">0</span>
       </div>
-      <p class="note">なぞり終えると、かたちが自ずと ぼやけていきます。<br>好きなところで画面をタップすると 止まります。<br>写真のぼかしは「写真」の項で、それぞれ独立に調整できます。</p>
+      <p class="note">なぞり終えると、かたちが自ずと ぼやけていきます。<br>好きなところで画面をタップすると 止まります。</p>
 
       <h2>Actions</h2>
       <div class="actions">
@@ -1058,7 +1063,11 @@
         };
       });
 
-      // ---------- photo controls ----------
+      /* ---------- photo controls【一時的に無効化】あとで復活させる。
+         上部の Photo / 写真 の HTML と drawmode の「写真移動」ボタンも合わせて有効化すること。
+         この機能は drawScene()->drawPhoto() や pointer ハンドラの state.tool==="photo" 分岐、
+         state.photo（既に保持）と連動する。
+
       const photoInput = document.getElementById("photoInput");
       const photoCtrls = document.getElementById("photoCtrls");
       const pScale = document.getElementById("pScale"), pScaleVal = document.getElementById("pScaleVal");
@@ -1145,6 +1154,8 @@
         pVeilVal.textContent = pVeil.value;
         render();
       };
+      ---------- photo controls ここまで ---------- */
+
       const lineWEl = document.getElementById("lineW");
       const lineWVal = document.getElementById("lineWVal");
       lineWEl.oninput = () => {

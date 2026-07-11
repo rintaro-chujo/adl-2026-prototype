@@ -508,38 +508,7 @@
         <button id="dlBtn">画像を書き出す（PNG）</button>
       </div>
 
-      <details>
-        <summary>Text / 文字を編集</summary>
-        <div class="field">
-          <label>キッカー（小さな前書き）</label>
-          <textarea id="t_kicker" rows="3"></textarea>
-        </div>
-        <div class="field">
-          <label>主題（縦書き・改行で列送り）</label>
-          <textarea id="t_title" rows="4"></textarea>
-        </div>
-        <div class="field">
-          <label>会期</label>
-          <input id="t_year" placeholder="2026" />
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <input id="t_d1" style="flex:1" />
-            <input id="t_d2" style="flex:1" />
-          </div>
-          <input id="t_time" style="margin-top:8px" />
-          <label style="margin-top:8px">補足（改行で複数行）</label>
-          <textarea id="t_notes" rows="2"></textarea>
-        </div>
-        <div class="field">
-          <label>会場</label>
-          <input id="t_venue" />
-          <input id="t_url" style="margin-top:8px" />
-          <input id="t_access" style="margin-top:8px" />
-        </div>
-        <div class="field">
-          <label>主催</label>
-          <input id="t_host" />
-        </div>
-      </details>
+      <p class="note" style="margin-top:16px">文字組みは共通のデザイン（SVG）です。<br>「somehow, my heart is …」の英文は、キャンバス上でドラッグして好きな場所に動かせます。</p>
     </aside>
   </div>
 
@@ -562,27 +531,12 @@
         { name: "墨", hex: "#3B3A38" },
       ];
 
+      // 文字組みは共通デザインの SVG（assets/）をそのまま描画する。
+      // 旧サイズ（正方形・9:16 など）は SVG が用意でき次第復活させる想定で一旦非表示。
       const SIZES = [
-        { id: "poster", label: "ポスター 縦", sub: "B/A 比・印刷", w: 1240, h: 1754 },
-        { id: "poster_s", label: "ポスター 小 縦", sub: "軽量プレビュー", w: 868, h: 1228 },
-        { id: "ig_post", label: "Instagram 投稿", sub: "正方形", w: 1080, h: 1080 },
-        { id: "ig_story", label: "Instagram ストーリー", sub: "9:16 縦長", w: 1080, h: 1920 },
-        { id: "ig_port", label: "Instagram 縦型投稿", sub: "4:5", w: 1080, h: 1350 },
+        { id: "poster", label: "ポスター 縦", sub: "印刷用", w: 1684, h: 2384, svg: "assets/poster.svg" },
+        { id: "insta", label: "Instagram", sub: "4:5 縦型投稿", w: 1080, h: 1350, svg: "assets/insta.svg" },
       ];
-
-      const DEFAULT_TEXT = {
-        kicker: "科研費基盤B\n「モノの主観的価値のダイナミクスを基盤とした循環型経済のインタラクションデザイン」\n最終成果報告展",
-        title: "モノに\nこころを\nあづけて\nおりまして",
-        year: "2026",
-        d1: "7.31 fri",
-        d2: "8.2 sun",
-        time: "10:00 – 19:00",
-        notes: "8/1 はレセプション 20:00 まで\n8/2 は 15:00 まで",
-        venue: "Bababa",
-        url: "https://bababa.jp",
-        access: "高田馬場駅から徒歩5分",
-        host: "主催：ソンヨンア ＋ Affective Design Lab",
-      };
 
       const state = {
         size: SIZES[0],
@@ -596,7 +550,7 @@
         blur: 0,
         maxBlur: 0,
         photo: { img: null, scale: 1, ox: 0, oy: 0, blur: 0, veil: 0.25 },
-        text: { ...DEFAULT_TEXT },
+        someOff: { x: 0, y: 0 }, // "somehow, my heart is…" のドラッグ移動量（キャンバス座標）
       };
 
       const canvas = document.getElementById("c");
@@ -611,13 +565,114 @@
         render();
       }
 
-      // ---------- colour helpers ----------
-      function lum(hex) {
-        const n = parseInt(hex.slice(1), 16);
-        const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-        return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      // ---------- SVG 文字組みアート ----------
+      // 文字組みはデザイナー支給の SVG をそのまま使う。
+      // <img> 経由の SVG は外部フォントを読めないため、Google Fonts から
+      // 使用グリフだけをサブセット取得し、data URI で SVG に埋め込む。
+      const ART = { base: null, some: null, someBBox: null, loading: false };
+      const svgCache = {};
+      let FONTCSS = "";
+
+      async function fetchSvg(url) {
+        if (!svgCache[url]) svgCache[url] = await fetch(url).then(r => r.text());
+        return svgCache[url];
       }
-      function inkOn(bg) { return lum(bg) < 0.5 ? CREAM : INK; }
+
+      function b64(buf) {
+        const u8 = new Uint8Array(buf);
+        let s = "";
+        const CH = 0x8000;
+        for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+        return btoa(s);
+      }
+
+      async function buildFontCss(allText) {
+        const families = [
+          ["Cormorant Infant", "500;700"],
+          ["Shippori Mincho", "400;500;700"],
+        ];
+        let css = "";
+        for (const [fam, wts] of families) {
+          const api = `https://fonts.googleapis.com/css2?family=${fam.replace(/ /g, "+")}:wght@${wts}&text=${encodeURIComponent(allText)}`;
+          let c = await fetch(api).then(r => r.text());
+          const urls = [...new Set([...c.matchAll(/url\((https:[^)]+)\)/g)].map(m => m[1]))];
+          for (const u of urls) {
+            const buf = await fetch(u).then(x => x.arrayBuffer());
+            c = c.split(u).join(`data:font/woff2;base64,${b64(buf)}`);
+          }
+          css += c + "\n";
+        }
+        return css;
+      }
+
+      function svgToImg(markup) {
+        return new Promise((res, rej) => {
+          const blob = new Blob([markup], { type: "image/svg+xml" });
+          const url = URL.createObjectURL(blob);
+          const im = new Image();
+          im.onload = () => { URL.revokeObjectURL(url); res(im); };
+          im.onerror = e => { URL.revokeObjectURL(url); rej(e); };
+          im.src = url;
+        });
+      }
+
+      const isSomehow = t => /somehow/.test(t.textContent);
+
+      async function loadArt(size) {
+        ART.loading = true;
+        ART.base = ART.some = ART.someBBox = null;
+        const raw = await fetchSvg(size.svg);
+        const doc = new DOMParser().parseFromString(raw, "image/svg+xml");
+        const root = doc.documentElement;
+        root.setAttribute("width", size.w);
+        root.setAttribute("height", size.h);
+        const styleEl = root.querySelector("style");
+        // Adobe Fonts 由来（ATC-…）は Shippori Mincho にフォールバック
+        styleEl.textContent = FONTCSS + styleEl.textContent
+          .replace(/font-family:\s*ATC-[^;]+;/g, "font-family:'Shippori Mincho',serif;");
+
+        // "somehow…" を分離して、ベースと可動テキストの2枚に
+        const baseRoot = root.cloneNode(true);
+        const someRoot = root.cloneNode(true);
+        [...baseRoot.querySelectorAll("text")].filter(isSomehow).forEach(t => t.remove());
+        [...someRoot.children].forEach(ch => {
+          if (ch.tagName === "defs") return;
+          if (ch.tagName === "text" && isSomehow(ch)) return;
+          ch.remove();
+        });
+        const ser = el => new XMLSerializer().serializeToString(el);
+        const [baseImg, someImg] = await Promise.all([svgToImg(ser(baseRoot)), svgToImg(ser(someRoot))]);
+
+        // "somehow…" の当たり判定用 bbox を実測（transform 込みで取るため画面座標から換算）
+        const holder = document.createElement("div");
+        holder.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden;";
+        holder.innerHTML = ser(root);
+        document.body.appendChild(holder);
+        try { await document.fonts.ready; } catch (e) { }
+        const hsvg = holder.querySelector("svg");
+        const hEl = [...holder.querySelectorAll("text")].find(isSomehow);
+        if (hsvg && hEl) {
+          const sr = hsvg.getBoundingClientRect();
+          const tr = hEl.getBoundingClientRect();
+          const sx = size.w / sr.width, sy = size.h / sr.height;
+          ART.someBBox = {
+            x: (tr.left - sr.left) * sx, y: (tr.top - sr.top) * sy,
+            w: tr.width * sx, h: tr.height * sy
+          };
+        }
+        holder.remove();
+        ART.base = baseImg;
+        ART.some = someImg;
+        ART.loading = false;
+      }
+
+      function somehowHit(p) {
+        const b = ART.someBBox;
+        if (!b) return false;
+        const pad = canvas.width * 0.02;
+        const x = b.x + state.someOff.x, y = b.y + state.someOff.y;
+        return p.x >= x - pad && p.x <= x + b.w + pad && p.y >= y - pad && p.y <= y + b.h + pad;
+      }
 
       // ---------- shape path ----------
       function tracePath(c, pts, close) {
@@ -692,29 +747,6 @@
         c.restore();
       }
 
-      // ---------- typography ----------
-      function setLS(v) { try { ctx.letterSpacing = v; } catch (e) { } }
-
-      // 禁則処理つき文字折り返し（\n の手動改行は保持）
-      const NO_START = "、。，．・：；？！ー〜…‥）」』】〕〉》ぁぃぅぇぉっゃゅょゎんゝゞ々";
-      const NO_END = "（「『【〔〈《";
-      function wrapJa(text, maxW) {
-        const lines = [];
-        for (const seg of text.split("\n")) {
-          let cur = "";
-          for (const ch of [...seg]) {
-            const over = cur && ctx.measureText(cur + ch).width > maxW;
-            if (over && !NO_START.includes(ch) && !NO_END.includes(cur[cur.length - 1])) {
-              lines.push(cur); cur = ch;
-            } else {
-              cur += ch;
-            }
-          }
-          if (cur !== "") lines.push(cur);
-        }
-        return lines;
-      }
-
       function render() {
         const W = canvas.width, H = canvas.height;
         const bg = state.fillMode === "background" ? state.color : CREAM;
@@ -734,123 +766,9 @@
           ctx.restore();
         }
 
-        drawText(W, H);
-      }
-
-      function drawText(W, H) {
-        // 正方形〜縦長まで破綻しないよう、スケール単位 S は幅と高さの両方から決める
-        const S = Math.min(W, H * 0.78);
-        const m = S * 0.075;
-        const bg = state.fillMode === "background" ? state.color : CREAM;
-        const col = inkOn(bg);
-        const T = state.text;
-        ctx.fillStyle = col;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-
-        // ----- TOP: kicker（小さな前書き・禁則つき折り返し） -----
-        let y = m * 0.85;
-        if (T.kicker.trim()) {
-          const kSize = S * 0.0155;
-          ctx.font = `400 ${kSize}px ${MINCHO}`;
-          setLS(`${kSize * 0.08}px`);
-          const kl = wrapJa(T.kicker, W - m * 2);
-          kl.forEach(ln => { ctx.fillText(ln, m, y); y += kSize * 1.95; });
-          setLS("0px");
-          y += S * 0.048;
-        }
-
-        // ----- 縦書き主題（列は右から左へ） -----
-        const cols = T.title.split("\n").filter(s => s !== "");
-        if (cols.length) {
-          const vSize = S * 0.058;
-          const vStep = vSize * 1.62;   // 字送り：ゆったり
-          const colStep = vSize * 1.92; // 列送り：字送りより広く
-          const N = cols.length;
-          ctx.font = `500 ${vSize}px ${MINCHO}`;
-          ctx.textAlign = "center";
-          for (let i = 0; i < N; i++) {
-            const colX = m + (N - 1 - i) * colStep + vSize * 0.5;
-            let cy = y;
-            for (const ch of [...cols[i]]) {
-              ctx.fillText(ch, colX, cy);
-              cy += vStep;
-            }
-          }
-          ctx.textAlign = "left";
-        }
-
-        // ----- BOTTOM-LEFT: 会場・主催 -----
-        const venSize = S * 0.034, urlSize = S * 0.018, accSize = S * 0.021, hostSize = S * 0.021;
-        const venLH = venSize * 1.35, urlLH = urlSize * 1.7, accLH = accSize * 1.7, hostLH = hostSize * 1.6;
-        const gapL = S * 0.03;
-        const blTotal = venLH + urlLH + accLH + gapL + hostLH;
-        let by = (H - m) - blTotal;
-        ctx.font = `400 ${venSize}px ${SERIF}`;
-        setLS(`${venSize * 0.04}px`);
-        ctx.fillText(T.venue, m, by); by += venLH;
-        setLS("0px");
-        ctx.font = `400 ${urlSize}px ${SERIF}`;
-        setLS(`${urlSize * 0.05}px`);
-        ctx.fillText(T.url, m, by); by += urlLH;
-        setLS("0px");
-        ctx.font = `400 ${accSize}px ${MINCHO}`;
-        setLS(`${accSize * 0.06}px`);
-        ctx.fillText(T.access, m, by); by += accLH + gapL;
-        ctx.font = `400 ${hostSize}px ${MINCHO}`;
-        setLS(`${hostSize * 0.06}px`);
-        ctx.fillText(T.host, m, by);
-        setLS("0px");
-
-        // ----- BOTTOM-RIGHT: 会期 -----
-        const dx = W - m - S * 0.335;
-        const yearSize = S * 0.019, bigSize = S * 0.056, smSize = S * 0.018, noteSize = S * 0.0165;
-        const yearLH = yearSize * 1.6, bigLH = bigSize * 1.06, sepLH = bigSize * 0.6;
-        const gapD = S * 0.024, smLH = smSize * 1.7, noteLH = noteSize * 1.75;
-        const notes = T.notes.split("\n").filter(s => s !== "");
-        const drTotal = yearLH + bigLH + sepLH + bigLH + gapD + smLH + notes.length * noteLH;
-        let dy = (H - m) - drTotal;
-
-        if (T.year.trim()) {
-          ctx.font = `400 ${yearSize}px ${SERIF}`;
-          setLS(`${yearSize * 0.18}px`);
-          ctx.fillText(T.year, dx, dy);
-          setLS("0px");
-        }
-        dy += yearLH;
-
-        drawBigDate(dx, dy, T.d1, bigSize, col); dy += bigLH;
-        ctx.fillStyle = col;
-        ctx.fillRect(dx + bigSize * 0.05, dy + sepLH * 0.16, Math.max(1.4, S * 0.0016), sepLH * 0.62);
-        dy += sepLH;
-        drawBigDate(dx, dy, T.d2, bigSize, col); dy += bigLH + gapD;
-
-        ctx.fillStyle = col;
-        ctx.font = `400 ${smSize}px ${SERIF}`;
-        setLS(`${smSize * 0.08}px`);
-        ctx.fillText(T.time, dx, dy); dy += smLH;
-        setLS("0px");
-        ctx.font = `400 ${noteSize}px ${MINCHO}`;
-        setLS(`${noteSize * 0.04}px`);
-        notes.forEach(ln => { ctx.fillText(ln, dx, dy); dy += noteLH; });
-        setLS("0px");
-      }
-
-      function drawBigDate(x, y, str, bigSize, col) {
-        const parts = str.trim().split(/\s+/);
-        const num = parts[0];
-        const suf = parts.slice(1).join(" ");
-        ctx.fillStyle = col;
-        ctx.font = `400 ${bigSize}px ${SERIF}`;
-        ctx.textBaseline = "alphabetic";
-        const baseline = y + bigSize * 0.82;
-        ctx.fillText(num, x, baseline);
-        if (suf) {
-          const w = ctx.measureText(num).width;
-          ctx.font = `400 ${bigSize * 0.34}px ${SERIF}`;
-          ctx.fillText(suf, x + w + bigSize * 0.10, baseline);
-        }
-        ctx.textBaseline = "top";
+        // 文字組み（SVG）: ベース + 可動の "somehow…"
+        if (ART.base) ctx.drawImage(ART.base, 0, 0, W, H);
+        if (ART.some) ctx.drawImage(ART.some, state.someOff.x, state.someOff.y, W, H);
       }
 
       // ---------- pointer ----------
@@ -864,16 +782,25 @@
 
       // 写真移動ツール用: アクティブなポインタを追跡（ピンチ対応）
       const activePtrs = new Map();
+      // "somehow…" ドラッグ中の状態
+      let dragText = null;
 
       canvas.addEventListener("pointerdown", e => {
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
-        if (state.tool === "photo" && state.photo.img) {
-          activePtrs.set(e.pointerId, toCanvas(e));
+        if (state.phase === "blurring") { stopBlur(); return; }
+        const p = toCanvas(e);
+        // 英文 "somehow…" の上なら、ツールに関係なくドラッグで移動
+        if (activePtrs.size === 0 && somehowHit(p)) {
+          dragText = { sx: p.x, sy: p.y, ox: state.someOff.x, oy: state.someOff.y };
           hideHint();
           return;
         }
-        if (state.phase === "blurring") { stopBlur(); return; }
-        state.points = [toCanvas(e)];
+        if (state.tool === "photo" && state.photo.img) {
+          activePtrs.set(e.pointerId, p);
+          hideHint();
+          return;
+        }
+        state.points = [p];
         state.phase = "drawing";
         state.blur = 0;
         syncBlurUI();
@@ -881,6 +808,13 @@
         render();
       });
       canvas.addEventListener("pointermove", e => {
+        if (dragText) {
+          const p = toCanvas(e);
+          state.someOff.x = dragText.ox + (p.x - dragText.sx);
+          state.someOff.y = dragText.oy + (p.y - dragText.sy);
+          render();
+          return;
+        }
         if (state.tool === "photo" && state.photo.img && activePtrs.has(e.pointerId)) {
           const p = toCanvas(e);
           const ph = state.photo;
@@ -910,8 +844,12 @@
           render();
           return;
         }
-        if (state.phase !== "drawing") return;
         const p = toCanvas(e);
+        if (state.phase !== "drawing") {
+          // ホバー時のカーソル: "somehow…" の上では移動カーソルに
+          canvas.style.cursor = somehowHit(p) ? "move" : "crosshair";
+          return;
+        }
         const last = state.points[state.points.length - 1];
         if (!last || Math.hypot(p.x - last.x, p.y - last.y) > canvas.width * 0.004) {
           state.points.push(p);
@@ -919,6 +857,7 @@
         }
       });
       function endStroke(e) {
+        if (dragText) { dragText = null; return; }
         if (e && activePtrs.has(e.pointerId)) { activePtrs.delete(e.pointerId); return; }
         if (state.phase !== "drawing") return;
         if (state.points.length < 2) { state.phase = "idle"; render(); return; }
@@ -963,7 +902,9 @@
           state.size = s;
           state.points = []; state.phase = "idle"; state.blur = 0;
           state.photo.ox = 0; state.photo.oy = 0; // 比率が変わるので写真は中央に戻す
+          state.someOff.x = 0; state.someOff.y = 0; // 英文はサイズごとの定位置に戻す
           syncBlurUI(); applySize();
+          loadArt(s).then(render).catch(err => console.error(err));
           showHint("画面をなぞって かたちを描く");
         };
         sizesEl.appendChild(b);
@@ -1137,29 +1078,38 @@
         }, "image/png");
       };
 
-      // ---------- text editing ----------
-      const bind = (id, key) => {
-        const el = document.getElementById(id);
-        el.value = state.text[key];
-        el.addEventListener("input", () => { state.text[key] = el.value; render(); });
-      };
-      ["t_kicker:kicker", "t_title:title", "t_year:year", "t_d1:d1", "t_d2:d2",
-        "t_time:time", "t_notes:notes", "t_venue:venue", "t_url:url", "t_access:access", "t_host:host"]
-        .forEach(pair => { const [id, key] = pair.split(":"); bind(id, key); });
-
-      // ---------- fonts, then go ----------
-      applySize();
-      if (document.fonts && document.fonts.ready) {
-        Promise.all([
-          document.fonts.load('300 40px "Cormorant Garamond"'),
-          document.fonts.load('400 40px "Cormorant Garamond"'),
-          document.fonts.load('500 40px "Cormorant Garamond"'),
-          document.fonts.load('400 40px "Shippori Mincho"'),
-          document.fonts.load('500 40px "Shippori Mincho"'),
-          document.fonts.load('600 40px "Shippori Mincho"'),
-        ]).then(render).catch(render);
-        document.fonts.ready.then(render);
+      // ---------- init: フォント準備 → SVG 文字組みの読み込み ----------
+      async function initArt() {
+        try {
+          const raws = await Promise.all(SIZES.map(s => fetchSvg(s.svg)));
+          // 両 SVG で使う全グリフを集めてサブセット取得
+          const chars = new Set(" ");
+          for (const raw of raws) {
+            const d = new DOMParser().parseFromString(raw, "image/svg+xml");
+            d.querySelectorAll("text").forEach(t => { for (const ch of t.textContent) chars.add(ch); });
+          }
+          try {
+            FONTCSS = await buildFontCss([...chars].join(""));
+            // 当たり判定の実測（getBoundingClientRect）用に document 側にも同じフォントを注入
+            const st = document.createElement("style");
+            st.textContent = FONTCSS;
+            document.head.appendChild(st);
+          } catch (e) {
+            FONTCSS = ""; // オフライン等ではフォールバックフォントで描画
+          }
+          await loadArt(state.size);
+          render();
+          // SVG 内フォントの適用が一拍遅れる環境向けに念のため再描画
+          setTimeout(render, 300);
+          setTimeout(render, 1200);
+        } catch (e) {
+          console.error("文字組み SVG の読み込みに失敗:", e);
+          showHint("文字組みの読み込みに失敗しました");
+        }
       }
+
+      applySize();
+      initArt();
     })();
   </script>
 </body>

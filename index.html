@@ -1526,13 +1526,16 @@
         render();
       };
 
-      document.getElementById("redrawBtn").onclick = () => {
+      // ボタンは HTML 側でコメントアウト（非表示）されることがあるので、存在時のみ束縛する
+      const redrawBtn = document.getElementById("redrawBtn");
+      if (redrawBtn) redrawBtn.onclick = () => {
         cancelAnimationFrame(raf);
         state.points = []; state.phase = "idle"; state.blur = 0;
         syncBlurUI(); render();
         showHint("画面をなぞって かたちを描く");
       };
-      document.getElementById("stopBtn").onclick = stopBlur;
+      const stopBtnEl = document.getElementById("stopBtn");
+      if (stopBtnEl) stopBtnEl.onclick = stopBlur;
 
       function exportName() {
         return state.size.paper

@@ -648,9 +648,15 @@
       // 文字組みはデザイナー支給の SVG をそのまま使う。
       // <img> 経由の SVG は外部フォントを読めないため、Google Fonts から
       // 使用グリフだけをサブセット取得し、data URI で SVG に埋め込む。
-      const ART = { base: null, some: null, someBBox: null, loading: false };
+      const ART = { base: null, some: null, someBBox: null, loading: false, white: false };
       const svgCache = {};
       let FONTCSS = "";
+
+      // 「背景に色」で赤（珊瑚）または黒（墨）のときは文字を白にする。
+      const WHITE_TEXT_COLORS = new Set(["#C75C5C", "#3B3A38"]);
+      function textIsWhite() {
+        return state.fillMode === "background" && WHITE_TEXT_COLORS.has(state.color);
+      }
 
       async function fetchSvg(url) {
         if (!svgCache[url]) svgCache[url] = await fetch(url).then(r => r.text());
@@ -733,9 +739,16 @@
           ch.remove();
         });
         const ser = el => new XMLSerializer().serializeToString(el);
+        // 背景が赤／黒のときは、SVG の文字色（濃いグレー）を白に差し替える。
+        // #3f3b3a=ポスター, #3e3a39=インスタ の fill/stroke を対象。
+        const white = textIsWhite();
+        const recolor = m => white
+          ? m.replace(/#3f3b3a/gi, "#ffffff").replace(/#3e3a39/gi, "#ffffff")
+          : m;
         // 書き出し時に任意解像度で再ラスタライズできるようマークアップを保持
-        ART.baseMarkup = ser(baseRoot);
-        ART.someMarkup = ser(someRoot);
+        ART.baseMarkup = recolor(ser(baseRoot));
+        ART.someMarkup = recolor(ser(someRoot));
+        ART.white = white;
         const [baseImg, someImg] = await Promise.all([
           rasterizeArt(ART.baseMarkup, pw, ph),
           rasterizeArt(ART.someMarkup, pw, ph),
@@ -1164,6 +1177,13 @@
         render();
       };
 
+      // 文字色（白⇔通常）の条件が変わったら SVG を再ラスタライズ
+      function refreshArtColor() {
+        if (!ART.loading && textIsWhite() !== ART.white) {
+          loadArt(state.size).then(render).catch(err => console.error(err));
+        }
+      }
+
       const swEl = document.getElementById("swatches");
       PALETTE.forEach((p, i) => {
         const s = document.createElement("div");
@@ -1172,7 +1192,7 @@
         s.onclick = () => {
           [...swEl.children].forEach(x => x.classList.remove("active"));
           s.classList.add("active");
-          state.color = p.hex; render();
+          state.color = p.hex; render(); refreshArtColor();
         };
         swEl.appendChild(s);
       });
@@ -1181,7 +1201,7 @@
         b.onclick = () => {
           document.querySelectorAll("#fillmode button").forEach(x => x.classList.remove("active"));
           b.classList.add("active");
-          state.fillMode = b.dataset.mode; render();
+          state.fillMode = b.dataset.mode; render(); refreshArtColor();
         };
       });
 

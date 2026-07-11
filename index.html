@@ -175,6 +175,35 @@
       font-family: "Cormorant Garamond", serif;
     }
 
+    #paperRow {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    #paperRow.show {
+      display: flex;
+    }
+
+    #paperSel {
+      flex: none;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    #paperPx {
+      color: var(--muted);
+      font-size: 11px;
+      font-family: "Cormorant Garamond", serif;
+    }
+
     .seg button.active,
     .sizes button.active {
       border-color: var(--ink);
@@ -424,9 +453,14 @@
       }
 
       .field input,
-      .field textarea {
+      .field textarea,
+      #paperSel {
         font-size: 16px;
         /* iOS のフォーカスズームを防ぐ */
+      }
+
+      #paperSel {
+        min-height: 44px;
       }
     }
   </style>
@@ -448,6 +482,10 @@
 
       <h2>Size / サイズ</h2>
       <div class="sizes" id="sizes"></div>
+      <div id="paperRow">
+        <select id="paperSel"></select>
+        <span id="paperPx" class="dim"></span>
+      </div>
 
       <h2>Photo / 写真</h2>
       <div class="actions" style="margin-top:0">
@@ -533,13 +571,29 @@
 
       // 文字組みは共通デザインの SVG（assets/）をそのまま描画する。
       // 旧サイズ（正方形・9:16 など）は SVG が用意でき次第復活させる想定で一旦非表示。
-      const SIZES = [
-        { id: "poster", label: "ポスター 縦", sub: "印刷用", w: 1684, h: 2384, svg: "assets/poster.svg" },
-        { id: "insta", label: "Instagram", sub: "4:5 縦型投稿", w: 1080, h: 1350, svg: "assets/insta.svg" },
+      const PPI = 300;                       // 印刷解像度
+      const PREVIEW_MAX = 2200;              // プレビュー Canvas の長辺上限（px）
+      const mmToPx = mm => Math.round(mm / 25.4 * PPI);
+      // ポスターの用紙サイズ（縦位置・mm）。書き出しは 300ppi のフル解像度。
+      const PAPER = [
+        { id: "a4", label: "A4", mm: [210, 297] },
+        { id: "a3", label: "A3", mm: [297, 420] },
+        { id: "a2", label: "A2", mm: [420, 594] },
+        { id: "a1", label: "A1", mm: [594, 841] },
+        { id: "b3", label: "B3", mm: [364, 515] },
+        { id: "b2", label: "B2", mm: [515, 728] },
+        { id: "b1", label: "B1", mm: [728, 1030] },
       ];
+      const SIZES = [
+        { id: "poster", label: "ポスター 縦", sub: "印刷用 300ppi", svg: "assets/poster.svg", paper: true },
+        { id: "insta", label: "Instagram", sub: "4:5 縦型投稿", svg: "assets/insta.svg", w: 1080, h: 1350 },
+      ];
+      const paperById = id => PAPER.find(p => p.id === id) || PAPER[2];
 
       const state = {
         size: SIZES[0],
+        paperId: "a2",       // ポスターの用紙サイズ（書き出し解像度）
+        exportScale: 1,      // フル解像度 / プレビュー解像度
         color: PALETTE[0].hex,
         fillMode: "shape",   // 'shape' | 'background'
         tool: "fill",        // ポインタの役割: 'fill' | 'line' | 'photo'
@@ -558,11 +612,31 @@
       const hint = document.getElementById("hint");
       let raf = null;
 
+      // 選択中サイズのフル（書き出し）解像度
+      function fullDims() {
+        if (state.size.paper) {
+          const p = paperById(state.paperId);
+          return { w: mmToPx(p.mm[0]), h: mmToPx(p.mm[1]) };
+        }
+        return { w: state.size.w, h: state.size.h };
+      }
+
+      // プレビュー Canvas は軽量な固定解像度。書き出しは fullDims() を使い、
+      // 描画は全てプレビュー座標で行い、書き出し時に exportScale 倍で拡大する。
       function applySize() {
-        canvas.width = state.size.w;
-        canvas.height = state.size.h;
-        state.maxBlur = state.size.w * 0.075;
+        const full = fullDims();
+        const k = Math.min(1, PREVIEW_MAX / Math.max(full.w, full.h));
+        canvas.width = Math.max(1, Math.round(full.w * k));
+        canvas.height = Math.max(1, Math.round(full.h * k));
+        state.exportScale = full.w / canvas.width;
+        state.maxBlur = canvas.width * 0.075;
         render();
+      }
+
+      // 用紙サイズだけ変更（アスペクトはほぼ同一なのでプレビューは再構築せず、
+      // 書き出し倍率のみ更新して描いたかたち・写真位置を保つ）
+      function updateExportScale() {
+        state.exportScale = fullDims().w / canvas.width;
       }
 
       // ---------- SVG 文字組みアート ----------
@@ -618,14 +692,24 @@
 
       const isSomehow = t => /somehow/.test(t.textContent);
 
+      // SVG マークアップ（viewBox 基準のベクター）を指定 px にラスタライズ。
+      // width/height を差し替えるだけで任意解像度で鮮明に描ける（書き出しで再利用）。
+      function rasterizeArt(markup, w, h) {
+        const sized = markup
+          .replace(/\swidth="[^"]*"/, ` width="${w}"`)
+          .replace(/\sheight="[^"]*"/, ` height="${h}"`);
+        return svgToImg(sized);
+      }
+
       async function loadArt(size) {
         ART.loading = true;
         ART.base = ART.some = ART.someBBox = null;
+        const pw = canvas.width, ph = canvas.height;   // プレビュー解像度で描く
         const raw = await fetchSvg(size.svg);
         const doc = new DOMParser().parseFromString(raw, "image/svg+xml");
         const root = doc.documentElement;
-        root.setAttribute("width", size.w);
-        root.setAttribute("height", size.h);
+        root.setAttribute("width", pw);
+        root.setAttribute("height", ph);
         const styleEl = root.querySelector("style");
         // ATC-… は Illustrator の合成フォント。グリフ単位のフォールバックで
         // 欧文・数字 → Cormorant Infant、和文 → Shippori Mincho に振り分ける
@@ -644,7 +728,13 @@
           ch.remove();
         });
         const ser = el => new XMLSerializer().serializeToString(el);
-        const [baseImg, someImg] = await Promise.all([svgToImg(ser(baseRoot)), svgToImg(ser(someRoot))]);
+        // 書き出し時に任意解像度で再ラスタライズできるようマークアップを保持
+        ART.baseMarkup = ser(baseRoot);
+        ART.someMarkup = ser(someRoot);
+        const [baseImg, someImg] = await Promise.all([
+          rasterizeArt(ART.baseMarkup, pw, ph),
+          rasterizeArt(ART.someMarkup, pw, ph),
+        ]);
 
         // "somehow…" の当たり判定用 bbox を実測（transform 込みで取るため画面座標から換算）
         const holder = document.createElement("div");
@@ -657,7 +747,7 @@
         if (hsvg && hEl) {
           const sr = hsvg.getBoundingClientRect();
           const tr = hEl.getBoundingClientRect();
-          const sx = size.w / sr.width, sy = size.h / sr.height;
+          const sx = pw / sr.width, sy = ph / sr.height;
           ART.someBBox = {
             x: (tr.left - sr.left) * sx, y: (tr.top - sr.top) * sy,
             w: tr.width * sx, h: tr.height * sy
@@ -699,10 +789,11 @@
       }
 
       // ---------- background photo ----------
-      function drawPhoto(c) {
+      // すべてプレビュー座標で描く（W,H はプレビュー Canvas の寸法）。
+      // 書き出し時は呼び出し側で ctx.scale(exportScale) 済み。
+      function drawPhoto(c, W, H) {
         const ph = state.photo;
         if (!ph.img) return;
-        const W = canvas.width, H = canvas.height;
         const iw = ph.img.width, ih = ph.img.height;
         const s = Math.max(W / iw, H / ih) * ph.scale;
         const dw = iw * s, dh = ih * s;
@@ -724,7 +815,7 @@
         }
       }
 
-      function drawShape(c) {
+      function drawShape(c, W) {
         const pts = state.points;
         if (pts.length < 2) return;
         const paint = state.fillMode === "background" ? CREAM : state.color;
@@ -732,13 +823,13 @@
         if (state.blur > 0.2) c.filter = `blur(${state.blur}px)`;
         if (state.shapeMode === "line") {
           c.strokeStyle = paint;
-          c.lineWidth = Math.max(2, state.lineW * canvas.width);
+          c.lineWidth = Math.max(2, state.lineW * W);
           c.lineCap = "round"; c.lineJoin = "round";
           tracePath(c, pts, false);
           c.stroke();
         } else if (pts.length < 3) {
           c.strokeStyle = paint;
-          c.lineWidth = Math.max(6, canvas.width * 0.02);
+          c.lineWidth = Math.max(6, W * 0.02);
           c.lineCap = "round"; c.lineJoin = "round";
           tracePath(c, pts, false);
           c.stroke();
@@ -750,28 +841,36 @@
         c.restore();
       }
 
-      function render() {
-        const W = canvas.width, H = canvas.height;
+      // シーン全体を任意の ctx / プレビュー寸法で描く。
+      // forExport: プレースホルダ（「ここにかたちを描く」）を出さない。
+      // skipArt: 文字組み（SVG）は描かない（書き出し時にフル解像度で別途描くため）。
+      function drawScene(c, W, H, forExport, skipArt) {
         const bg = state.fillMode === "background" ? state.color : CREAM;
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, W, H);
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = bg;
+        c.fillRect(0, 0, W, H);
 
-        drawPhoto(ctx);
-        drawShape(ctx);
+        drawPhoto(c, W, H);
+        drawShape(c, W);
 
-        if (state.points.length === 0 && state.phase === "idle" && !state.photo.img) {
-          ctx.save();
-          ctx.fillStyle = "rgba(120,112,96,.28)";
-          ctx.font = `${Math.round(W * 0.02)}px ${MINCHO}`;
-          ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.fillText("ここに かたちを 描く", W / 2, H * 0.52);
-          ctx.restore();
+        if (!forExport && state.points.length === 0 && state.phase === "idle" && !state.photo.img) {
+          c.save();
+          c.fillStyle = "rgba(120,112,96,.28)";
+          c.font = `${Math.round(W * 0.02)}px ${MINCHO}`;
+          c.textAlign = "center"; c.textBaseline = "middle";
+          c.fillText("ここに かたちを 描く", W / 2, H * 0.52);
+          c.restore();
         }
 
         // 文字組み（SVG）: ベース + 可動の "somehow…"
-        if (ART.base) ctx.drawImage(ART.base, 0, 0, W, H);
-        if (ART.some) ctx.drawImage(ART.some, state.someOff.x, state.someOff.y, W, H);
+        if (!skipArt) {
+          if (ART.base) c.drawImage(ART.base, 0, 0, W, H);
+          if (ART.some) c.drawImage(ART.some, state.someOff.x, state.someOff.y, W, H);
+        }
+      }
+
+      function render() {
+        drawScene(ctx, canvas.width, canvas.height, false);
       }
 
       // ---------- pointer ----------
@@ -894,10 +993,33 @@
       function hideHint() { hint.style.opacity = 0; }
 
       // ---------- controls ----------
+      const paperRow = document.getElementById("paperRow");
+      const paperSel = document.getElementById("paperSel");
+      const paperPx = document.getElementById("paperPx");
+
+      PAPER.forEach(p => {
+        const o = document.createElement("option");
+        o.value = p.id; o.textContent = p.label;
+        paperSel.appendChild(o);
+      });
+      paperSel.value = state.paperId;
+
+      function updatePaperPx() {
+        const d = fullDims();
+        paperPx.textContent = `${d.w} × ${d.h} px / ${PPI}ppi`;
+      }
+
+      paperSel.onchange = () => {
+        state.paperId = paperSel.value;
+        updateExportScale();   // プレビューは維持、書き出し倍率のみ更新
+        updatePaperPx();
+      };
+
       const sizesEl = document.getElementById("sizes");
       SIZES.forEach((s, i) => {
         const b = document.createElement("button");
-        b.innerHTML = `<span>${s.label}<br><span class="dim" style="font-family:${MINCHO}">${s.sub}</span></span><span class="dim">${s.w}×${s.h}</span>`;
+        const dim = s.paper ? "" : `<span class="dim">${s.w}×${s.h}</span>`;
+        b.innerHTML = `<span>${s.label}<br><span class="dim" style="font-family:${MINCHO}">${s.sub}</span></span>${dim}`;
         if (i === 0) b.classList.add("active");
         b.onclick = () => {
           [...sizesEl.children].forEach(x => x.classList.remove("active"));
@@ -906,12 +1028,17 @@
           state.points = []; state.phase = "idle"; state.blur = 0;
           state.photo.ox = 0; state.photo.oy = 0; // 比率が変わるので写真は中央に戻す
           state.someOff.x = 0; state.someOff.y = 0; // 英文はサイズごとの定位置に戻す
+          paperRow.classList.toggle("show", !!s.paper);
+          updatePaperPx();
           syncBlurUI(); applySize();
           loadArt(s).then(render).catch(err => console.error(err));
           showHint("画面をなぞって かたちを描く");
         };
         sizesEl.appendChild(b);
       });
+      // 初期表示（ポスターが既定）
+      paperRow.classList.toggle("show", !!state.size.paper);
+      updatePaperPx();
 
       document.querySelectorAll("#drawmode button").forEach(b => {
         b.onclick = () => {
@@ -1068,18 +1195,70 @@
         showHint("画面をなぞって かたちを描く");
       };
       document.getElementById("stopBtn").onclick = stopBlur;
-      document.getElementById("dlBtn").onclick = () => {
-        render();
-        canvas.toBlob(blob => {
-          if (!blob) return;
+
+      function exportName() {
+        return state.size.paper
+          ? `mono-ni-kokoro_poster_${state.paperId.toUpperCase()}_${PPI}ppi.png`
+          : `mono-ni-kokoro_${state.size.id}.png`;
+      }
+
+      // 指定解像度でシーンをオフスクリーン合成し、PNG Blob を返す（失敗時 null）。
+      // 背景・写真・かたちはプレビュー座標を拡大して描き、文字組み（SVG）だけは
+      // その解像度で再ラスタライズして鮮明に重ねる（＝テキストは常に 300ppi 相当）。
+      async function composeAt(full, cap) {
+        const k = Math.min(1, cap / Math.max(full.w, full.h));
+        const ow = Math.max(1, Math.round(full.w * k));
+        const oh = Math.max(1, Math.round(full.h * k));
+        const oc = document.createElement("canvas");
+        oc.width = ow; oc.height = oh;
+        const octx = oc.getContext("2d");
+        if (!octx) return null;
+        const sc = ow / canvas.width;
+        // 1) 背景・写真・かたち（プレビュー座標を sc 倍で拡大）
+        octx.save();
+        octx.scale(sc, sc);
+        drawScene(octx, canvas.width, canvas.height, true, true);
+        octx.restore();
+        // 2) 文字組みを出力解像度で再ラスタライズして重ねる
+        if (ART.baseMarkup) {
+          const [b, s] = await Promise.all([
+            rasterizeArt(ART.baseMarkup, ow, oh),
+            rasterizeArt(ART.someMarkup, ow, oh),
+          ]);
+          octx.drawImage(b, 0, 0, ow, oh);
+          octx.drawImage(s, state.someOff.x * sc, state.someOff.y * sc, ow, oh);
+        }
+        const blob = await new Promise(res => oc.toBlob(res, "image/png"));
+        return blob;
+      }
+
+      // 選択サイズのフル解像度で書き出す。巨大解像度が Canvas 上限に
+      // 当たった場合は段階的に縮小して再試行する（メモリ/面積制限対策）。
+      async function exportPNG() {
+        const dlBtn = document.getElementById("dlBtn");
+        const full = fullDims();
+        const long = Math.max(full.w, full.h);
+        const caps = [long, 8000, 6000, 4000, PREVIEW_MAX].filter((c, i, a) => c <= long && a.indexOf(c) === i);
+        dlBtn.textContent = "書き出し中…";
+        await new Promise(r => setTimeout(r, 30)); // 「書き出し中…」の表示を反映
+        for (let i = 0; i < caps.length; i++) {
+          let blob = null;
+          try { blob = await composeAt(full, caps[i]); } catch (e) { blob = null; }
+          if (!blob) continue;
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
-          a.download = `mono-ni-kokoro_${state.size.id}.png`;
+          a.download = exportName();
           a.href = url;
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 2000);
-        }, "image/png");
-      };
+          dlBtn.textContent = "画像を書き出す（PNG）";
+          if (i > 0) showHint("端末の上限に合わせて解像度を下げました");
+          return;
+        }
+        dlBtn.textContent = "画像を書き出す（PNG）";
+        showHint("この解像度では書き出せませんでした");
+      }
+      document.getElementById("dlBtn").onclick = exportPNG;
 
       // ---------- init: フォント準備 → SVG 文字組みの読み込み ----------
       async function initArt() {

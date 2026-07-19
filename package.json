@@ -1,0 +1,23 @@
+{
+  "name": "adl-2026-prototype",
+  "private": true,
+  "description": "「ものにこころをあずけておりまして」展 — Poster Maker + 動的ポスター PNG エンドポイント",
+  "scripts": {
+    "sync": "rm -rf public && mkdir -p public && cp index.html venue.html public/ && cp -R assets public/assets",
+    "dev": "npm run sync && next dev",
+    "build": "npm run sync && next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

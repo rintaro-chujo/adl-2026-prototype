@@ -1147,6 +1147,11 @@
         }
       }
 
+      // canvas の filter=blur() は CTM でスケールされず出力ピクセルの絶対量として
+      // 適用される。書き出し（composeAt）は ctx.scale(sc) で拡大描画するため、
+      // ぼかし半径だけは別途 sc 倍しないとプレビューより弱くなる（下記で設定）。
+      let blurScale = 1;
+
       // ---------- background photo ----------
       // すべてプレビュー座標で描く（W,H はプレビュー Canvas の寸法）。
       // 書き出し時は呼び出し側で ctx.scale(exportScale) 済み。
@@ -1159,8 +1164,9 @@
         const cx = W / 2 + ph.ox, cy = H / 2 + ph.oy;
         const b = ph.blur * state.maxBlur;
         c.save();
-        if (b > 0.2) c.filter = `blur(${b}px)`;
-        // ぼかしで端が透けないよう、少し大きめに描く
+        // filter はプレビュー座標のぼかし量 b を出力解像度に合わせて blurScale 倍する。
+        if (b * blurScale > 0.2) c.filter = `blur(${b * blurScale}px)`;
+        // ぼかしで端が透けないよう、少し大きめに描く（pad はプレビュー座標のジオメトリ）
         const pad = b * 1.5;
         c.drawImage(ph.img, cx - dw / 2 - pad, cy - dh / 2 - pad, dw + pad * 2, dh + pad * 2);
         c.restore();
@@ -1181,7 +1187,7 @@
         if (pts.length < 2) return;
         const paint = S.fillMode === "background" ? CREAM : S.color;
         c.save();
-        if (S.blur * k > 0.2) c.filter = `blur(${S.blur * k}px)`;
+        if (S.blur * k * blurScale > 0.2) c.filter = `blur(${S.blur * k * blurScale}px)`;
         if (S.shapeMode === "line") {
           c.strokeStyle = paint;
           c.lineWidth = Math.max(2 * k, S.lineW * W * k);
@@ -1615,9 +1621,15 @@
         if (!octx) return null;
         const sc = ow / canvas.width;
         // 1) 背景・写真・かたち（プレビュー座標を sc 倍で拡大）
+        // filter=blur は CTM で拡大されないため blurScale=sc でぼかし半径を合わせる。
         octx.save();
         octx.scale(sc, sc);
-        drawScene(octx, canvas.width, canvas.height, true, true);
+        blurScale = sc;
+        try {
+          drawScene(octx, canvas.width, canvas.height, true, true);
+        } finally {
+          blurScale = 1;
+        }
         octx.restore();
         // 2) 文字組みを出力解像度で再ラスタライズして重ねる
         if (ART.baseMarkup) {

@@ -3,7 +3,7 @@
   "private": true,
   "description": "「ものにこころをあずけておりまして」展 — Poster Maker + 動的ポスター PNG エンドポイント",
   "scripts": {
-    "sync": "rm -rf public && mkdir -p public/data && cp index.html venue.html public/ && cp -R assets public/assets && cp data/works.json data/sections.json public/data/ && for f in visit.html screen.html graphic-lab.html visit-sw.js manifest.webmanifest; do [ -f $f ] && cp $f public/ || true; done",
+    "sync": "rm -rf public && mkdir -p public/data && cp venue.html public/ && cp -R assets public/assets && cp data/works.json data/sections.json public/data/ && for f in visit.html screen.html graphic-lab.html visit-sw.js manifest.webmanifest; do [ -f $f ] && cp $f public/ || true; done && cp index.html public/poster.html && cp screen.html public/index.html",
     "dev": "npm run sync && next dev",
     "build": "npm run sync && next build",
     "start": "next start",

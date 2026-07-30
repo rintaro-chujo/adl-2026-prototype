@@ -1,0 +1,264 @@
+[
+  {
+    "id": "w01",
+    "title": "rapoptosis",
+    "pdf": "rapoptosis.pdf",
+    "section": 1
+  },
+  {
+    "id": "w02",
+    "title": "コプター",
+    "pdf": "コプター.pdf",
+    "section": 2
+  },
+  {
+    "id": "w03",
+    "title": "パウチコプター",
+    "pdf": "パウチコプター.pdf",
+    "section": 2
+  },
+  {
+    "id": "w04",
+    "title": "MuseBuddy",
+    "pdf": "MuseBuddy.pdf",
+    "section": 2
+  },
+  {
+    "id": "w05",
+    "title": "Things Talk",
+    "pdf": "Things Talk.pdf",
+    "section": 2
+  },
+  {
+    "id": "w06",
+    "title": "高木さんの動く椅子",
+    "pdf": "高木さんの動く椅子.pdf",
+    "section": 2
+  },
+  {
+    "id": "w07",
+    "title": "逃げるスマートスピーカー",
+    "pdf": "逃げるスマートスピーカー.pdf",
+    "section": 2,
+    "focus": [
+      0.42,
+      0.7
+    ],
+    "crop": [
+      0,
+      0,
+      0.485,
+      1
+    ]
+  },
+  {
+    "id": "w08",
+    "title": "あっちこっちそうち",
+    "pdf": "あっちこっちそうち.pdf",
+    "section": 2
+  },
+  {
+    "id": "w09",
+    "title": "ときめき帳",
+    "pdf": "ときめき帳.pdf",
+    "section": 2
+  },
+  {
+    "id": "w10",
+    "title": "かみっけ",
+    "pdf": "かみっけ.pdf",
+    "section": 2
+  },
+  {
+    "id": "w11",
+    "title": "tugmii",
+    "pdf": "tugmii.pdf",
+    "section": 2
+  },
+  {
+    "id": "w12",
+    "title": "かまちょムシ",
+    "pdf": "かまちょムシ.pdf",
+    "section": 2
+  },
+  {
+    "id": "w13",
+    "title": "MechAnima",
+    "pdf": "MechAnima.pdf",
+    "section": 2
+  },
+  {
+    "id": "w14",
+    "title": "Cyborg thing",
+    "pdf": "Cyborg thing.pdf",
+    "section": 2
+  },
+  {
+    "id": "w15",
+    "title": "愛着デザインWS",
+    "pdf": "愛着デザインWS.pdf",
+    "section": 3
+  },
+  {
+    "id": "w16",
+    "title": "AI愛WS",
+    "pdf": "AI愛WS.pdf",
+    "section": 3
+  },
+  {
+    "id": "w17",
+    "title": "神様WS",
+    "pdf": "神様WS.pdf",
+    "section": 3
+  },
+  {
+    "id": "w18",
+    "title": "終始愛WS",
+    "pdf": "終始愛WS.pdf",
+    "section": 3
+  },
+  {
+    "id": "w19",
+    "title": "肩書だけでは釣りきれないので",
+    "pdf": "肩書だけでは釣りきれないので.pdf",
+    "section": 4
+  },
+  {
+    "id": "w20",
+    "title": "Becoming self",
+    "pdf": "Becoming self.pdf",
+    "section": 4
+  },
+  {
+    "id": "w21",
+    "title": "ここえ",
+    "pdf": "ここえ.pdf",
+    "section": 4,
+    "focus": [
+      0.55,
+      0.45
+    ]
+  },
+  {
+    "id": "w22",
+    "title": "巡言電話",
+    "pdf": "巡言電話.pdf",
+    "section": 4
+  },
+  {
+    "id": "w23",
+    "title": "Moyamoya Music",
+    "pdf": "Moyamoya Music.pdf",
+    "section": 4
+  },
+  {
+    "id": "w24",
+    "title": "きもちの手がかり",
+    "pdf": "きもちの手がかり.pdf",
+    "section": 4
+  },
+  {
+    "id": "w25",
+    "title": "アイ・ラベル",
+    "pdf": "アイ・ラベル.pdf",
+    "section": 4,
+    "focus": [
+      0.38,
+      0.62
+    ]
+  },
+  {
+    "id": "w26",
+    "title": "Monetic Plotter",
+    "pdf": "Monetic Plotter.pdf",
+    "section": 4
+  },
+  {
+    "id": "w27",
+    "title": "Joy's Bowl",
+    "pdf": "Joy's Bowl.pdf",
+    "section": 4
+  },
+  {
+    "id": "w28",
+    "title": "カロモン",
+    "pdf": "カロモン.pdf",
+    "section": 4
+  },
+  {
+    "id": "w29",
+    "title": "The Tissue",
+    "pdf": "The Tissue.pdf",
+    "section": 4
+  },
+  {
+    "id": "w30",
+    "title": "モノ語り",
+    "pdf": "モノ語り.pdf",
+    "section": 4
+  },
+  {
+    "id": "w31",
+    "title": "Koko",
+    "pdf": "Koko.pdf",
+    "section": 4
+  },
+  {
+    "id": "w32",
+    "title": "実家のタイムカード",
+    "pdf": "実家のタイムカード.pdf",
+    "section": 4
+  },
+  {
+    "id": "w33",
+    "title": "ケアのすれ違い",
+    "pdf": "ケアのすれ違い.pdf",
+    "section": 5
+  },
+  {
+    "id": "w34",
+    "title": "お別れ期限",
+    "pdf": "お別れ期限.pdf",
+    "section": 5
+  },
+  {
+    "id": "w35",
+    "title": "巡る傘",
+    "pdf": "巡る傘.pdf",
+    "section": 5
+  },
+  {
+    "id": "w36",
+    "title": "CanLoop",
+    "pdf": "CanLoop.pdf",
+    "section": 5
+  },
+  {
+    "id": "w37",
+    "title": "Re_ Tagged Thereads",
+    "pdf": "Re_ Tagged Thereads.pdf",
+    "section": 5
+  },
+  {
+    "id": "w38",
+    "title": "モノとのあわいにあった物語",
+    "pdf": "モノとのあわいにあった物語.pdf",
+    "section": 5
+  },
+  {
+    "id": "w39",
+    "title": "WANTAG",
+    "pdf": "WANTAG.pdf",
+    "section": 5,
+    "focus": [
+      0.42,
+      0.5
+    ]
+  },
+  {
+    "id": "w40",
+    "title": "共有と所有の間",
+    "pdf": "共有と所有の間.pdf",
+    "section": 5
+  }
+]

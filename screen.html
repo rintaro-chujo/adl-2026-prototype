@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>モノにこころをあずけておりまして — Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+  href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Shippori+Mincho:wght@400;500;700&display=swap"
+  rel="stylesheet">
+<style>
+  :root { --bg: #F4EFE4; --ink: #2C2A26; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+  }
+  /* マウス3秒静止でカーソル非表示 */
+  body.cursor-hidden, body.cursor-hidden * { cursor: none; }
+
+  .stage {
+    position: fixed; inset: 0; overflow: hidden; background: var(--bg);
+  }
+  .stage canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: block; transform: translateY(0);
+  }
+
+  /* 展示タイトル(デザイナーSVGの文字組。バブルが重なっても構わない) */
+  .title {
+    position: fixed; margin: 0; pointer-events: none; z-index: 5;
+  }
+  .title-ja {
+    top: 6vh; left: 4vw;
+    height: 44vh; width: auto;
+  }
+  .title-en {
+    bottom: 7vh; right: 4vw;
+    width: clamp(240px, 24vw, 460px); height: auto;
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="cvA"></canvas>
+  <canvas id="cvB"></canvas>
+</div>
+<img class="title title-ja" src="assets/visit/title-ja.svg" alt="モノにこころをあずけておりまして">
+<img class="title title-en" src="assets/visit/title-en.svg" alt="somehow, my heart is with those things">
+
+<script src="assets/visit/graphic.js"></script>
+<script>
+(function () {
+  "use strict";
+  var G = window.LeafletGraphic;
+  var EMOTIONS = G.EMOTIONS;
+
+  // ---- URL パラメータ(?poll=ms, ?api=ベースURL) ----
+  var qs = new URLSearchParams(location.search);
+  var POLL_MS = Math.max(1000, parseInt(qs.get("poll"), 10) || 5000);
+  var API_BASE = (qs.get("api") || "").replace(/\/$/, "");
+  function apiUrl(path) { return API_BASE + path; }
+
+  var cvA = document.getElementById("cvA");
+  var cvB = document.getElementById("cvB");
+  cvA.__lgKey = "screenA";
+  cvB.__lgKey = "screenB";
+  var activeCanvas = cvA, standbyCanvas = cvB;
+  standbyCanvas.style.transform = "translateY(100%)";
+
+  // ---- キャンバス実解像度: min(画面, 1920×1080) 相当 ----
+  var MAX_W = 1920, MAX_H = 1080;
+  function sizeCanvas(cv) {
+    var cssW = window.innerWidth, cssH = window.innerHeight;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.round(cssW * dpr), h = Math.round(cssH * dpr);
+    if (w > MAX_W || h > MAX_H) {
+      var s = Math.min(MAX_W / w, MAX_H / h);
+      w = Math.round(w * s); h = Math.round(h * s);
+    }
+    w = Math.max(1, w); h = Math.max(1, h);
+    if (cv.width !== w) cv.width = w;
+    if (cv.height !== h) cv.height = h;
+  }
+  function sizeAll() { sizeCanvas(cvA); sizeCanvas(cvB); }
+  sizeAll();
+  window.addEventListener("resize", sizeAll);
+  window.addEventListener("orientationchange", sizeAll);
+
+  // ---- 作品データ + 画像キャッシュ(id→Image を使い回してリーク防止) ----
+  var worksById = new Map();
+  fetch("data/works.json").then(function (r) { return r.json(); }).then(function (list) {
+    list.forEach(function (w) { worksById.set(w.id, w); });
+  }).catch(function () { /* works.json 無しでも動く(focus/cropが付かないだけ) */ });
+
+  var imgCache = new Map(); // workId -> HTMLImageElement
+  function loadImages(ids) {
+    return Promise.all(ids.map(function (id) {
+      if (imgCache.has(id)) return null;
+      var im = new Image();
+      im.src = "assets/posters/" + id + ".main.jpg";
+      var w = worksById.get(id);
+      if (w && w.focus) im.__focus = w.focus;
+      if (w && w.crop) im.__crop = w.crop;
+      imgCache.set(id, im);
+      // decode() は非表示タブで保留され続ける(Chrome)ので onload で待つ。
+      // デコードは初回 drawImage 時に同期で行われる(1回きりなので許容)。
+      if (im.complete) return null;
+      return new Promise(function (res) { im.onload = res; im.onerror = res; });
+    }));
+  }
+  function imagesFor(spec) {
+    var m = new Map();
+    spec.blobs.forEach(function (b) {
+      var im = imgCache.get(b.imgId);
+      if (im) m.set(b.imgId, im);
+    });
+    return m;
+  }
+  function idsOf(spec) { return spec.blobs.map(function (b) { return b.imgId; }); }
+
+  // ---- 全画面を漂うバブル化 ----
+  // 3つのバブルが画面全体を漂い、形も大きく速くウニョウニョ変わる。
+  // タイトルとの重なりは許容するが、バブル同士は重ならないように毎フレーム分離する。
+  var ROAM_R = [0.30, 0.15, 0.15];        // 基本半径(画面高さ比)
+  var MORPH_SUM = 0.28;                    // 形状振幅の合計上限(画像の欠け防止とセット)
+  var COVER_SIDE = 3.0;                    // ↑に合わせた drawCover の安全マージン
+  var OM_BOOST = 3.2;                      // 形状の揺れの速さ倍率
+  function roamParams(spec) {
+    if (spec.__roam) return spec.__roam;
+    var rnd = G.mulberry32(G.hashSeed(String(spec.seed) + ":roam"));
+    spec.__roam = spec.blobs.map(function () {
+      return {
+        x0: 0.20 + 0.60 * rnd(), y0: 0.22 + 0.56 * rnd(), // 画面比(x はあとで aspect に展開)
+        ax: 0.16 + 0.12 * rnd(), ay: 0.12 + 0.10 * rnd(), // 漂いの振幅
+        wx: 0.09 + 0.10 * rnd(), wy: 0.08 + 0.09 * rnd(), // 漂いの速さ(rad/s)
+        px: rnd() * Math.PI * 2, py: rnd() * Math.PI * 2,
+        wr: 0.16 + 0.14 * rnd(), pr: rnd() * Math.PI * 2, // 呼吸(半径の脈動)
+      };
+    });
+    return spec.__roam;
+  }
+  var clampN = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+  function animatedSpec(spec, t, W, H) {
+    var aspect = W / H;
+    var roam = roamParams(spec);
+    // 1) 漂い位置と半径を「高さ=1」の座標系(x は 0..aspect)で計算
+    var pts = spec.blobs.map(function (b, i) {
+      var m = roam[i];
+      var x = (m.x0 + m.ax * Math.sin(m.wx * t + m.px) + 0.05 * Math.sin(0.31 * t + m.py * 2.3)) * aspect;
+      var y = m.y0 + m.ay * Math.sin(m.wy * t + m.py) + 0.045 * Math.sin(0.27 * t + m.px * 1.7);
+      var rH = (ROAM_R[i] || 0.28) * (1 + 0.09 * Math.sin(m.wr * t + m.pr));
+      return { x: x, y: y, rH: rH, re: rH * (1 + 0.8 * MORPH_SUM) }; // re = 見た目の実効半径
+    });
+    // 2) バブル同士のゆっくり反発: 接触の少し手前から効き始め、
+    //    1 フレームで離しきらない(係数<1)ので、近づくとじわっと押し返される
+    var REPEL_PAD = 0.07;    // 効き始めの距離マージン(画面高さ比)
+    var REPEL_K = 0.45;      // 反発の強さ(1=即時に完全分離)
+    for (var it = 0; it < 2; it++) {
+      for (var i = 0; i < pts.length; i++) {
+        for (var j = i + 1; j < pts.length; j++) {
+          var a = pts[i], b2 = pts[j];
+          var dx = b2.x - a.x, dy = b2.y - a.y;
+          var d = Math.hypot(dx, dy) || 1e-4;
+          var need = a.re + b2.re + REPEL_PAD;
+          if (d < need) {
+            var push = (need - d) * REPEL_K / 2, ux = dx / d, uy = dy / d;
+            a.x -= ux * push; a.y -= uy * push;
+            b2.x += ux * push; b2.y += uy * push;
+          }
+        }
+      }
+      pts.forEach(function (p) {
+        p.x = clampN(p.x, p.re * 0.55, aspect - p.re * 0.55);
+        p.y = clampN(p.y, p.re * 0.60, 1 - p.re * 0.60);
+      });
+    }
+    // 3) graphic.js の座標系(cx,r=幅比 / cy=高さ比)へ変換 + 形状の揺れを増幅
+    var blobs = spec.blobs.map(function (b, i) {
+      var p = pts[i];
+      var sum = b.harm.reduce(function (s, h) { return s + h.a; }, 0);
+      var boost = Math.min(3.0, MORPH_SUM / Math.max(sum, 0.001));
+      var harm = b.harm.map(function (h) {
+        return { k: h.k, a: h.a * boost, ph: h.ph, om: h.om * OM_BOOST };
+      });
+      return Object.assign({}, b, {
+        cx: p.x / aspect,
+        cy: p.y,
+        r: p.rH / aspect,
+        harm: harm,
+      });
+    });
+    return Object.assign({}, spec, { blobs: blobs });
+  }
+
+  // ---- デフォルトスペック巡回(ジョブ0件/フェッチ失敗時) ----
+  var DEFAULT_SEEDS = [110817, 552391, 84620, 933015, 271144, 68229]; // 固定配列
+  var defaultIdx = 0;
+  function allWorkIds() {
+    var out = [];
+    for (var i = 1; i <= 40; i++) out.push("w" + (i < 10 ? "0" + i : i));
+    return out;
+  }
+  function makeDefaultSpec() {
+    var seed = DEFAULT_SEEDS[defaultIdx % DEFAULT_SEEDS.length];
+    defaultIdx++;
+    var rnd = G.mulberry32(G.hashSeed(seed));
+    var pool = allWorkIds();
+    var workIds = [];
+    for (var i = 0; i < 3 && pool.length; i++) {
+      workIds.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+    }
+    var color = EMOTIONS[Math.floor(rnd() * EMOTIONS.length)].hex;
+    return { id: "default-" + seed, spec: G.makeSpec({ seed: seed, color: color, workIds: workIds }) };
+  }
+
+  // ---- 現在/遷移中のジョブ状態 ----
+  var current = null;   // { id, spec } — activeCanvas に描くもの
+  var incoming = null;  // { id, spec } — standbyCanvas に描くもの(遷移中のみ)
+  var transitioning = false;
+  var transitionSeq = 0;
+  var TRANSITION_MS = 1400;
+
+  function showSpec(jobId, spec, opts) {
+    var animateIn = !!(opts && opts.animateIn) && !!current;
+    return loadImages(idsOf(spec)).then(function () {
+      if (!animateIn) {
+        current = { id: jobId, spec: spec };
+        return;
+      }
+      if (transitioning) return; // 前の遷移中は次回のポーリングに任せる
+      transitioning = true;
+      var seq = ++transitionSeq;   // 非表示中に据え置かれた古い rAF を無効化するためのトークン
+      incoming = { id: jobId, spec: spec };
+      // 押し出しトランジション: 旧キャンバスは上へ、新キャンバスは下からイン
+      standbyCanvas.style.transition = "none";
+      standbyCanvas.style.transform = "translateY(100%)";
+      // 反映を待って(次フレーム)トランジション開始
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (seq !== transitionSeq) return; // 遷移はすでに確定済み(遅延発火した古いフレーム)
+          activeCanvas.style.transition = "transform " + TRANSITION_MS + "ms ease-in-out";
+          standbyCanvas.style.transition = "transform " + TRANSITION_MS + "ms ease-in-out";
+          activeCanvas.style.transform = "translateY(-100%)";
+          standbyCanvas.style.transform = "translateY(0)";
+        });
+      });
+      setTimeout(function () {
+        transitionSeq++;           // 以降、この遷移の rAF は無効
+        current = incoming; incoming = null;
+        var old = activeCanvas; activeCanvas = standbyCanvas; standbyCanvas = old;
+        standbyCanvas.style.transition = "none";
+        standbyCanvas.style.transform = "translateY(100%)";
+        // タブが非表示だと rAF 由来の transform 適用が飛ぶことがあるので、
+        // 遷移後の最終状態をここで必ず確定させる(画面外に残る事故防止)
+        activeCanvas.style.transition = "none";
+        activeCanvas.style.transform = "translateY(0)";
+        transitioning = false;
+      }, TRANSITION_MS + 60);
+    });
+  }
+
+  // ---- rAF ループ(t を連続で進める。visibilitychange で停止/再開) ----
+  var running = true, rafId = null;
+  var t0 = performance.now();
+  function renderInto(cv, job, t) {
+    if (!job) return;
+    sizeCanvas(cv);
+    var mapped = animatedSpec(job.spec, t, cv.width, cv.height);
+    G.render(cv, mapped, imagesFor(job.spec), { t: t, transparent: false, style: { coverSide: COVER_SIDE } });
+  }
+  function frame() {
+    if (!running) return;
+    var t = (performance.now() - t0) / 1000;
+    renderInto(activeCanvas, current, t);
+    if (incoming) renderInto(standbyCanvas, incoming, t);
+    rafId = requestAnimationFrame(frame);
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+    } else if (!running) {
+      running = true;
+      rafId = requestAnimationFrame(frame);
+    }
+  });
+
+  // ---- デフォルト巡回(30秒ごと) ----
+  var defaultTimer = null;
+  var usingDefault = true;
+  function advanceDefault() {
+    var d = makeDefaultSpec();
+    showSpec(d.id, d.spec, { animateIn: true });
+  }
+  function startDefaultCycleIfNeeded() {
+    if (defaultTimer) return;
+    defaultTimer = setInterval(advanceDefault, 30000);
+  }
+  function stopDefaultCycle() {
+    if (defaultTimer) { clearInterval(defaultTimer); defaultTimer = null; }
+  }
+
+  // ---- /api/latest ポーリング(5秒ごと、?poll=で変更可) ----
+  var lastJobId = null;
+  function pollLatest() {
+    fetch(apiUrl("/api/latest"), { cache: "no-store" }).then(function (res) {
+      if (!res.ok) throw new Error("http " + res.status);
+      return res.json();
+    }).then(function (data) {
+      if (data && data.id && data.spec) {
+        usingDefault = false;
+        stopDefaultCycle();
+        if (data.id !== lastJobId) {
+          lastJobId = data.id;
+          showSpec(data.id, data.spec, { animateIn: true });
+        }
+      } else {
+        lastJobId = null;
+        usingDefault = true;
+        startDefaultCycleIfNeeded();
+      }
+    }).catch(function () {
+      // API が無い/落ちている環境でもデフォルト巡回で動かす
+      lastJobId = null;
+      usingDefault = true;
+      startDefaultCycleIfNeeded();
+    });
+  }
+
+  // ---- 起動 ----
+  function init() {
+    var d0 = makeDefaultSpec();
+    showSpec(d0.id, d0.spec, { animateIn: false });
+    startDefaultCycleIfNeeded();
+    pollLatest();
+    setInterval(pollLatest, POLL_MS);
+    rafId = requestAnimationFrame(frame);
+  }
+  init();
+
+  // 検証・会場デバッグ用フック(タブ非表示中でも1フレーム描ける)
+  window.__screen = {
+    renderOnce: function (t) {
+      var tt = typeof t === "number" ? t : (performance.now() - t0) / 1000;
+      renderInto(activeCanvas, current, tt);
+      if (incoming) renderInto(standbyCanvas, incoming, tt);
+      return { current: current && current.id, incoming: incoming && incoming.id };
+    },
+    advanceDefault: advanceDefault,
+    state: function () {
+      return { running: running, usingDefault: usingDefault, lastJobId: lastJobId, transitioning: transitioning };
+    },
+  };
+
+  // ---- ダブルクリックでフルスクリーン ----
+  document.addEventListener("dblclick", function () {
+    var el = document.documentElement;
+    if (!document.fullscreenElement) {
+      var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (req) req.call(el);
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  });
+
+  // ---- マウス3秒静止でカーソル非表示 ----
+  var cursorTimer = null;
+  function scheduleCursorHide() {
+    document.body.classList.remove("cursor-hidden");
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(function () {
+      document.body.classList.add("cursor-hidden");
+    }, 3000);
+  }
+  window.addEventListener("mousemove", scheduleCursorHide);
+  scheduleCursorHide();
+})();
+</script>
+</body>
+</html>

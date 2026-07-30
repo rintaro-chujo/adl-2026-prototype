@@ -7,3 +7,7 @@ public/
 next-env.d.ts
 tsconfig.tsbuildinfo
 .vercel
+.data/
+print-agent/out/
+print-agent/state.json
+print-agent/survey.csv

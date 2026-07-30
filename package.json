@@ -3,14 +3,18 @@
   "private": true,
   "description": "「ものにこころをあずけておりまして」展 — Poster Maker + 動的ポスター PNG エンドポイント",
   "scripts": {
-    "sync": "rm -rf public && mkdir -p public && cp index.html venue.html public/ && cp -R assets public/assets",
+    "sync": "rm -rf public && mkdir -p public/data && cp index.html venue.html public/ && cp -R assets public/assets && cp data/works.json data/sections.json public/data/ && for f in visit.html screen.html graphic-lab.html visit-sw.js manifest.webmanifest; do [ -f $f ] && cp $f public/ || true; done",
     "dev": "npm run sync && next dev",
     "build": "npm run sync && next build",
-    "start": "next start"
+    "start": "next start",
+    "agent": "node print-agent/agent.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "@vercel/blob": "^2.6.1",
     "next": "^16",
+    "pdf-lib": "^1.17.1",
+    "qrcode-generator": "^2.0.4",
     "react": "^19",
     "react-dom": "^19",
     "three": "^0.185.1"

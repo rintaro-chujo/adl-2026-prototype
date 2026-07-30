@@ -1,0 +1,7 @@
+# 印刷エージェント専用のデータ・成果物（Web アプリの配信には不要）
+data/posters
+print-agent/out
+print-agent/state.json
+print-agent/survey.csv
+.data
+node_modules

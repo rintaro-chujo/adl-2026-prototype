@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphic Lab — マイリーフレット表面</title>
+<style>
+  :root { --bg:#F4EFE4; --ink:#2C2A26; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background:#E8E2D4; color:var(--ink); font-family:"Shippori Mincho", serif; padding:20px; }
+  .wrap { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  .paper { background:var(--bg); box-shadow:0 6px 30px rgba(0,0,0,.18); }
+  canvas { display:block; width:min(62vh,520px); aspect-ratio:210/297; }
+  .panel { width:300px; display:flex; flex-direction:column; gap:14px; font-size:13px; }
+  .panel h1 { font-size:15px; font-weight:600; letter-spacing:.1em; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button, select { font:inherit; padding:6px 12px; border:1px solid var(--ink); background:#fff; cursor:pointer; border-radius:3px; }
+  button:hover { background:var(--ink); color:#fff; }
+  .chip { width:52px; height:40px; border-radius:6px; border:2px solid transparent; cursor:pointer;
+          display:flex; align-items:flex-end; justify-content:center; font-size:10px; color:#fff;
+          text-shadow:0 0 3px rgba(0,0,0,.45); padding-bottom:2px; }
+  .chip.active { border-color:var(--ink); }
+  select { max-width:280px; }
+  label { user-select:none; }
+  .sliders { display:grid; grid-template-columns:auto 1fr auto; gap:4px 8px; align-items:center; }
+  .sliders input { width:100%; }
+  .seed { font-family:monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="paper"><canvas id="cv"></canvas></div>
+  <div class="panel">
+    <h1>マイリーフレット表面ラボ</h1>
+    <div class="row">
+      <button id="dice">🎲 かたちを変える</button>
+      <span class="seed" id="seedLabel"></span>
+    </div>
+    <div class="row" id="chips"></div>
+    <div class="row">
+      <button id="shuffleWorks">🔀 作品を変える</button>
+    </div>
+    <select id="w0"></select>
+    <select id="w1"></select>
+    <select id="w2"></select>
+    <div class="row">
+      <label><input type="checkbox" id="anim"> うにょうにょ</label>
+      <label><input type="checkbox" id="qr" checked> QR</label>
+    </div>
+    <div class="sliders" id="sliders"></div>
+    <div class="row">
+      <button id="export">A4 300ppi PNG 書き出し</button>
+    </div>
+    <div id="status" style="opacity:.6"></div>
+  </div>
+</div>
+
+<script src="assets/visit/graphic.js"></script>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const status = m => $("status").textContent = m;
+
+  const EMOTIONS = [
+    { label: "わくわく", hex: "#C75C5C" },
+    { label: "おだやか", hex: "#A6CFE3" },
+    { label: "うれしい", hex: "#F1C4D1" },
+    { label: "じんわり", hex: "#EFD884" },
+    { label: "すっきり", hex: "#A9C56C" },
+    { label: "なつかしい", hex: "#C9C6E4" },
+    { label: "しんみり", hex: "#3B3A38" },
+  ];
+
+  // ---------- data ----------
+  status("works.json 読み込み中…");
+  const works = await fetch("data/works.json").then(r => r.json());
+
+  // ---------- typography (poster.svg + Google Fonts data-URI 埋め込み) ----------
+  function b64(buf) {
+    const u8 = new Uint8Array(buf); let s = ""; const CH = 0x8000;
+    for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    return btoa(s);
+  }
+  async function buildFontCss(allText) {
+    const families = [["Cormorant Infant", "400;500;700"], ["Shippori Mincho", "400;500;700"]];
+    let css = "";
+    for (const [fam, wts] of families) {
+      const api = `https://fonts.googleapis.com/css2?family=${fam.replace(/ /g, "+")}:wght@${wts}&text=${encodeURIComponent(allText)}`;
+      let c = await fetch(api).then(r => r.text());
+      const urls = [...new Set([...c.matchAll(/url\((https:[^)]+)\)/g)].map(m => m[1]))];
+      for (const u of urls) {
+        const buf = await fetch(u).then(x => x.arrayBuffer());
+        c = c.split(u).join(`data:font/woff2;base64,${b64(buf)}`);
+      }
+      css += c + "\n";
+    }
+    return css;
+  }
+  const svgToImg = markup => new Promise((res, rej) => {
+    const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+    const im = new Image();
+    im.onload = () => { URL.revokeObjectURL(url); res(im); };
+    im.onerror = rej;
+    im.src = url;
+  });
+
+  status("タイポグラフィ準備中…");
+  let typoMarkup = null;
+  try {
+    const raw = await fetch("assets/leaflet.svg").then(r => r.text());
+    const doc = new DOMParser().parseFromString(raw, "image/svg+xml");
+    const chars = new Set(" ");
+    doc.querySelectorAll("text").forEach(t => { for (const ch of t.textContent) chars.add(ch); });
+    let fontCss = "";
+    try { fontCss = await buildFontCss([...chars].join("")); } catch (e) { console.warn("fonts", e); }
+    const styleEl = doc.documentElement.querySelector("style");
+    styleEl.textContent = fontCss + styleEl.textContent
+      .replace(/font-family:\s*ATC-[^;]+;/g, "font-family:'Cormorant Infant','Shippori Mincho',serif;");
+    typoMarkup = new XMLSerializer().serializeToString(doc.documentElement);
+  } catch (e) { console.warn("typo", e); }
+  const typoAt = async (w, h) => {
+    if (!typoMarkup) return null;
+    const sized = typoMarkup
+      .replace(/\swidth="[^"]*"/, ` width="${w}"`).replace(/\sheight="[^"]*"/, ` height="${h}"`);
+    return svgToImg(sized.includes(`width="${w}"`) ? sized : typoMarkup.replace(/<svg /, `<svg width="${w}" height="${h}" `));
+  };
+
+  // ---------- state ----------
+  const state = {
+    seed: Math.floor(Math.random() * 1e6),
+    color: EMOTIONS[1].hex,
+    ids: [],
+    anim: false, qr: true,
+  };
+  const pickWorks = () => {
+    const pool = [...works];
+    state.ids = Array.from({ length: 3 }, () => pool.splice(Math.floor(Math.random() * pool.length), 1)[0].id);
+  };
+  pickWorks();
+  // URL ハッシュで状態を再現できるように(レビュー共有用)
+  try {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get("s")) state.seed = +h.get("s");
+    if (h.get("c")) state.color = (EMOTIONS[+h.get("c")] || EMOTIONS[1]).hex;
+    if (h.get("w")) state.ids = h.get("w").split(",");
+  } catch (e) {}
+  const saveHash = () => history.replaceState(null, "",
+    `#s=${state.seed}&c=${EMOTIONS.findIndex(e => e.hex === state.color)}&w=${state.ids.join(",")}`);
+
+  // ---------- images ----------
+  const imgCache = new Map();
+  async function loadImages(ids) {
+    await Promise.all(ids.map(id => {
+      if (imgCache.has(id)) return;
+      const im = new Image();
+      im.src = `assets/posters/${id}.main.jpg`;
+      const w = works.find(x => x.id === id);
+      if (w && w.focus) im.__focus = w.focus;
+      if (w && w.crop) im.__crop = w.crop;
+      imgCache.set(id, im);
+      return im.decode().catch(() => imgCache.delete(id));
+    }));
+    return imgCache;
+  }
+
+  // ---------- style sliders ----------
+  const STYLE = window.LeafletGraphic.STYLE;
+  const SLIDERS = [
+    ["featherR", 0, 0.15], ["imgBlurR", 0, 0.06], ["edgeBlurR", 0, 0.15],
+    ["coreR", 0.3, 1.0], ["coreBlurR", 0, 0.3], ["veilAlpha", 0, 0.5],
+    ["rimWidthR", 0, 1.0], ["rimBlurR", 0, 0.4], ["rimAlpha", 0, 1],
+    ["haloBlurR", 0, 0.5], ["haloAlpha", 0, 0.5], ["blobAlpha", 0.5, 1],
+  ];
+  const sl = $("sliders");
+  for (const [key, lo, hi] of SLIDERS) {
+    const lab = document.createElement("span"); lab.textContent = key;
+    const inp = document.createElement("input");
+    inp.type = "range"; inp.min = lo; inp.max = hi; inp.step = (hi - lo) / 100; inp.value = STYLE[key];
+    const val = document.createElement("span"); val.textContent = (+STYLE[key]).toFixed(2);
+    inp.oninput = () => { STYLE[key] = +inp.value; val.textContent = (+inp.value).toFixed(2); redraw(); };
+    sl.append(lab, inp, val);
+  }
+
+  // ---------- UI ----------
+  EMOTIONS.forEach(e => {
+    const c = document.createElement("div");
+    c.className = "chip"; c.style.background = e.hex; c.textContent = e.label;
+    c.onclick = () => { state.color = e.hex; [...$("chips").children].forEach(x => x.classList.toggle("active", x === c)); redraw(); };
+    if (e.hex === state.color) c.classList.add("active");
+    $("chips").appendChild(c);
+  });
+  [0, 1, 2].forEach(i => {
+    const sel = $("w" + i);
+    works.forEach(w => sel.add(new Option((i === 0 ? "★ " : "") + w.title, w.id)));
+    sel.onchange = () => { state.ids[i] = sel.value; redraw(); };
+  });
+  const syncSelects = () => [0, 1, 2].forEach(i => $("w" + i).value = state.ids[i]);
+  syncSelects();
+
+  $("dice").onclick = () => { state.seed = Math.floor(Math.random() * 1e6); redraw(); };
+  $("shuffleWorks").onclick = () => { pickWorks(); syncSelects(); redraw(); };
+  $("anim").onchange = e => { state.anim = e.target.checked; if (state.anim) tick(); };
+  $("qr").onchange = e => { state.qr = e.target.checked; redraw(); };
+
+  // ---------- QR placeholder ----------
+  // 右下・「主催/研究テーマ」ブロック(左下, y≈2094.6〜2292)と同じ高さに合わせる。
+  // 本番は実QRライブラリで同じ描き方(隙間なし・地色の上に直接)になる。
+  function drawQrPlaceholder(ctx, W, H) {
+    const rnd = window.LeafletGraphic.mulberry32(42);
+    const u = W / 1683.78;             // viewBox 単位 → キャンバス px
+    const size = 197 * u;              // ブロック高さと同じ
+    const x = (1683.78 - 93) * u - size, y = 2094.6 * u;
+    ctx.save();
+    ctx.fillStyle = "#2C2A26";
+    const n = 25, cell = size / n;
+    const inFinder = (i, j) =>
+      (i < 7 && j < 7) || (i >= n - 7 && j < 7) || (i < 7 && j >= n - 7);
+    // データ部: 隙間なし(セルを僅かに重ねて AA の継ぎ目も消す)
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (inFinder(i, j)) continue;
+      if (rnd() < 0.47) ctx.fillRect(x + i * cell, y + j * cell, cell + 0.5, cell + 0.5);
+    }
+    // ファインダー(7×7 の回の字 + 3×3)を正しい形で
+    for (const [fx, fy] of [[0, 0], [n - 7, 0], [0, n - 7]]) {
+      ctx.fillRect(x + fx * cell, y + fy * cell, cell * 7, cell * 7);
+      ctx.fillStyle = STYLE.bg;
+      ctx.fillRect(x + (fx + 1) * cell, y + (fy + 1) * cell, cell * 5, cell * 5);
+      ctx.fillStyle = "#2C2A26";
+      ctx.fillRect(x + (fx + 2) * cell, y + (fy + 2) * cell, cell * 3, cell * 3);
+    }
+    ctx.restore();
+  }
+
+  // ---------- render ----------
+  const cv = $("cv");
+  const PW = 1240, PH = 1754; // プレビュー 150ppi 相当
+  cv.width = PW; cv.height = PH;
+  cv.__lgKey = "preview";
+  let typoPreview = null;
+  typoAt(PW, PH).then(im => { typoPreview = im; redraw(); });
+
+  let spec = null;
+  async function redraw(t = 0) {
+    spec = window.LeafletGraphic.makeSpec({ seed: state.seed, color: state.color, workIds: state.ids });
+    $("seedLabel").textContent = "seed " + state.seed;
+    saveHash();
+    const images = await loadImages(state.ids);
+    window.LeafletGraphic.render(cv, spec, images, { t, typo: typoPreview });
+    if (state.qr) drawQrPlaceholder(cv.getContext("2d"), PW, PH);
+  }
+
+  let t0 = performance.now();
+  function tick() {
+    if (!state.anim) return;
+    redraw((performance.now() - t0) / 1000);
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- 300ppi export ----------
+  $("export").onclick = async () => {
+    status("300ppi レンダリング中…");
+    const W = 2480, H = 3508;
+    const big = document.createElement("canvas");
+    big.width = W; big.height = H; big.__lgKey = "export";
+    const typo = await typoAt(W, H);
+    const images = await loadImages(state.ids);
+    window.LeafletGraphic.render(big, spec, images, { typo });
+    if (state.qr) drawQrPlaceholder(big.getContext("2d"), W, H);
+    big.toBlob(b => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = `leaflet-front-${state.seed}.png`;
+      a.click();
+      status("書き出し完了");
+    }, "image/png");
+  };
+
+  status("");
+  redraw();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>モノにこころをあずけておりまして</title>
+  <meta name="description" content="「モノにこころをあずけておりまして」展 — 作品をあつめて、あなただけのリーフレットをつくる。">
+  <meta name="theme-color" content="#F4EFE4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="こころをあずけて">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Shippori+Mincho:wght@400;500;700&display=swap">
+  <style>
+    /* ============ デザイントークン ============ */
+    :root {
+      --cream: #F4EFE4;
+      --ink: #2C2A26;
+      --sub: #3f3b3a;
+      --muted: #8f8779;
+      --line: #e2dccd;
+      --sunk: #EAE3D2;
+      --paper: #fffdf8;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+      --barh: 0px;
+      /* 作品えらび中のスロットバーの高さ */
+      --ja: "Shippori Mincho", "Hiragino Mincho ProN", "YuMincho", serif;
+      --en: "Cormorant Infant", "Cormorant Garamond", Georgia, serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--cream);
+      color: var(--ink);
+    }
+
+    body {
+      font-family: var(--ja);
+      font-weight: 400;
+      line-height: 1.7;
+      overscroll-behavior-y: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body.lock {
+      overflow: hidden;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      border: 0;
+      background: none;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .en {
+      font-family: var(--en);
+      font-style: italic;
+      letter-spacing: .08em;
+    }
+
+    /* ============ ヒーロー ============ */
+    #hero {
+      position: relative;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--cream);
+    }
+
+    #heroCv {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* タイトルはデザイナーSVGの文字組をそのまま使う(縦書き4列 / 3行ずらし) */
+    .hero-ja {
+      position: absolute;
+      left: 24px;
+      top: calc(30px + var(--safe-t));
+      height: min(33vh, 300px);
+      width: auto;
+      pointer-events: none;
+    }
+
+    .hero-en {
+      position: absolute;
+      right: 22px;
+      bottom: 112px;
+      width: min(60vw, 300px);
+      height: auto;
+      pointer-events: none;
+    }
+
+    .hero-foot {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(26px + var(--safe-b));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .hero-foot .count {
+      font-family: var(--en);
+      font-size: 15px;
+      letter-spacing: .22em;
+      color: var(--sub);
+    }
+
+    .hero-foot .arrow {
+      width: 11px;
+      height: 11px;
+      border-right: 1px solid var(--muted);
+      border-bottom: 1px solid var(--muted);
+      transform: rotate(45deg);
+      animation: bob 2.4s ease-in-out infinite;
+    }
+
+    @keyframes bob {
+
+      0%,
+      100% {
+        transform: rotate(45deg) translate3d(0, 0, 0);
+        opacity: .5;
+      }
+
+      50% {
+        transform: rotate(45deg) translate3d(3px, 3px, 0);
+        opacity: 1;
+      }
+    }
+
+    /* ============ コレクション ============ */
+    #collection {
+      padding: 6px 16px calc(132px + var(--safe-b));
+    }
+
+    /* 作品えらび中はスロットバーの分だけ下に余白を足す */
+    body.picking #collection {
+      padding-bottom: calc(var(--barh) + 28px);
+    }
+
+    body.picking #nfcBtn {
+      bottom: calc(var(--barh) + 14px);
+    }
+
+    .sec {
+      margin-top: 46px;
+    }
+
+    .sec:first-child {
+      margin-top: 26px;
+    }
+
+    .sec-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 0 4px 16px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 20px;
+    }
+
+    .sec-n {
+      font-family: var(--en);
+      font-size: 12px;
+      letter-spacing: .2em;
+      color: var(--muted);
+    }
+
+    .sec-ja {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: .12em;
+    }
+
+    .sec-en {
+      font-family: var(--en);
+      font-style: italic;
+      font-size: 12px;
+      letter-spacing: .16em;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .cell {
+      position: relative;
+      aspect-ratio: 4161 / 2976;
+      border-radius: 2px;
+      overflow: hidden;
+      transition: transform .25s ease;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .cell:active {
+      transform: scale(.97);
+    }
+
+    /* 未取得 */
+    .cell.locked {
+      background: var(--sunk);
+      box-shadow: inset 0 0 0 1px rgba(44, 42, 38, .05), inset 0 1px 6px rgba(44, 42, 38, .05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cell.locked .no {
+      font-family: var(--en);
+      font-size: 20px;
+      letter-spacing: .12em;
+      color: rgba(44, 42, 38, .22);
+    }
+
+    .cell.locked::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(150deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0) 52%);
+      pointer-events: none;
+    }
+
+    /* 取得済み */
+    .cell.got {
+      background: #fff;
+      border: 4px solid #fff;
+      box-shadow: 0 1px 3px rgba(60, 50, 30, .10), 0 6px 14px rgba(60, 50, 30, .07);
+    }
+
+    .cell.got img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cell .glow {
+      position: absolute;
+      inset: -10%;
+      background: radial-gradient(closest-side, rgba(255, 255, 255, .95), rgba(255, 255, 255, 0) 72%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .cell.flash .glow {
+      animation: flash 1.1s ease-out;
+    }
+
+    @keyframes flash {
+      0% {
+        opacity: 0;
+      }
+
+      18% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    .cell.picked {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    /* ============ 固定ボタン ============ */
+    #leafletBtn {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: calc(16px + var(--safe-b));
+      z-index: 40;
+      background: var(--ink);
+      color: var(--cream);
+      border-radius: 999px;
+      padding: 16px 18px;
+      font-size: 15px;
+      letter-spacing: .1em;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(44, 42, 38, .22);
+      transition: opacity .3s ease, transform .3s ease;
+    }
+
+    #leafletBtn.away {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+      pointer-events: none;
+    }
+
+    #nfcBtn {
+      position: fixed;
+      right: 16px;
+      bottom: calc(84px + var(--safe-b));
+      z-index: 41;
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-size: 13px;
+      letter-spacing: .08em;
+      min-height: 44px;
+      box-shadow: 0 6px 18px rgba(44, 42, 38, .14);
+    }
+
+    #nfcBtn.on {
+      background: var(--ink);
+      color: var(--cream);
+      border-color: var(--ink);
+    }
+
+    /* ============ トースト ============ */
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(96px + var(--safe-b));
+      z-index: 90;
+      transform: translate3d(-50%, 12px, 0);
+      background: rgba(44, 42, 38, .92);
+      color: var(--cream);
+      font-size: 13px;
+      letter-spacing: .06em;
+      padding: 10px 18px;
+      border-radius: 999px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease;
+      max-width: 84vw;
+      text-align: center;
+    }
+
+    #toast.on {
+      opacity: 1;
+      transform: translate3d(-50%, 0, 0);
+    }
+
+    /* ============ ゲット演出 ============ */
+    #getfx {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      perspective: 1200px;
+    }
+
+    #getfx .veil {
+      position: absolute;
+      inset: 0;
+      background: rgba(28, 26, 24, 0);
+      transition: background .5s ease;
+    }
+
+    #getfx.on .veil {
+      background: rgba(28, 26, 24, .72);
+    }
+
+    #fxCard {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(62vw, 300px);
+      aspect-ratio: 4161 / 2976;
+      transform-style: preserve-3d;
+      transform: translate3d(-50%, 90vh, 0) rotateX(0deg) scale(.9);
+      will-change: transform;
+    }
+
+    #fxCard.rise {
+      transition: transform 1.2s cubic-bezier(.22, .9, .24, 1);
+      transform: translate3d(-50%, -50%, 0) rotateX(-900deg) scale(1);
+    }
+
+    #fxCard .face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 2px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .4);
+    }
+
+    #fxCard .front {
+      background: #fff;
+      border: 4px solid #fff;
+    }
+
+    #fxCard .front img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #fxCard .back {
+      background: var(--cream);
+      transform: rotateX(180deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+
+    #fxCard .back img {
+      width: 78%;
+      height: auto;
+      opacity: .75;
+    }
+
+    #fxTitle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(50% + min(31vw, 150px) + 28px);
+      text-align: center;
+      color: var(--cream);
+      opacity: 0;
+      transform: translate3d(0, 8px, 0);
+      transition: opacity .5s ease, transform .5s ease;
+      padding: 0 24px;
+    }
+
+    #fxTitle.on {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    #fxTitle .t {
+      font-size: 17px;
+      letter-spacing: .1em;
+    }
+
+    #fxTitle .s {
+      font-family: var(--en);
+      font-size: 11px;
+      letter-spacing: .22em;
+      opacity: .6;
+      margin-top: 6px;
+    }
+
+    /* ============ 詳細ビュー ============ */
+    #detail {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(28, 26, 24, .94);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity .3s ease;
+    }
+
+    #detail.on {
+      opacity: 1;
+    }
+
+    #detailStage {
+      flex: 1;
+      overflow: hidden;
+      touch-action: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #detailImg {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transform-origin: center center;
+      will-change: transform;
+    }
+
+    #detailBar {
+      padding: 14px 20px calc(18px + var(--safe-b));
+      color: var(--cream);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    #detailBar .t {
+      font-size: 14px;
+      letter-spacing: .08em;
+      flex: 1;
+      min-width: 0;
+    }
+
+    #detailBar .hint {
+      font-size: 10px;
+      letter-spacing: .06em;
+      opacity: .5;
+      display: block;
+      margin-top: 2px;
+    }
+
+    #detailClose {
+      width: 44px;
+      height: 44px;
+      flex: none;
+      border-radius: 50%;
+      border: 1px solid rgba(244, 239, 228, .45);
+      color: var(--cream);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    /* ============ スロットバー(リーフレット手順1) ============ */
+    #slotbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      background: var(--paper);
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -8px 30px rgba(60, 50, 30, .12);
+      padding: 16px 16px calc(16px + var(--safe-b));
+      transform: translate3d(0, 0, 0);
+      transition: transform .35s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    #slotbar.down {
+      transform: translate3d(0, 110%, 0);
+    }
+
+    .bar-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .bar-head .ttl {
+      font-size: 13px;
+      letter-spacing: .1em;
+    }
+
+    .bar-head .quit {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .06em;
+      padding: 8px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+
+    .slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .slot {
+      position: relative;
+      aspect-ratio: 4161 / 2976;
+      min-height: 48px;
+      border-radius: 2px;
+      background: var(--sunk);
+      border: 1px dashed rgba(44, 42, 38, .22);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .slot.filled {
+      border: 3px solid #fff;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(60, 50, 30, .12);
+    }
+
+    .slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .slot .ph {
+      font-family: var(--en);
+      font-size: 15px;
+      letter-spacing: .1em;
+      color: rgba(44, 42, 38, .28);
+    }
+
+    .slot .star {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: 11px;
+      line-height: 20px;
+      text-align: center;
+    }
+
+    .slot.shake {
+      animation: shake .45s ease;
+    }
+
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translate3d(0, 0, 0);
+      }
+
+      15% {
+        transform: translate3d(-6px, 0, 0);
+      }
+
+      30% {
+        transform: translate3d(5px, 0, 0);
+      }
+
+      45% {
+        transform: translate3d(-4px, 0, 0);
+      }
+
+      60% {
+        transform: translate3d(3px, 0, 0);
+      }
+
+      80% {
+        transform: translate3d(-2px, 0, 0);
+      }
+    }
+
+    .bar-note {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .04em;
+      line-height: 1.6;
+      margin-top: 10px;
+    }
+
+    /* ============ シート(手順2〜) ============ */
+    #sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: var(--cream);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: calc(18px + var(--safe-t)) 20px calc(28px + var(--safe-b));
+      opacity: 0;
+      transform: translate3d(0, 14px, 0);
+      transition: opacity .3s ease, transform .3s ease;
+    }
+
+    #sheet.on {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 26px;
+    }
+
+    .sheet-head .back {
+      width: 44px;
+      height: 44px;
+      margin-left: -12px;
+      font-size: 18px;
+      color: var(--sub);
+    }
+
+    .sheet-head .dots {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .sheet-head .dots i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(44, 42, 38, .18);
+      display: block;
+    }
+
+    .sheet-head .dots i.a {
+      background: var(--ink);
+    }
+
+    .step {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .step h2 {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: .12em;
+      margin: 0 0 4px;
+    }
+
+    .step h2 .sub {
+      display: block;
+      font-family: var(--en);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: .16em;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .step p.lead {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: .04em;
+      margin: 10px 0 26px;
+    }
+
+    .emos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .emo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 62px;
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      text-align: left;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .emo:active {
+      transform: scale(.97);
+    }
+
+    .emo .sw {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      flex: none;
+      box-shadow: inset 0 0 0 1px rgba(44, 42, 38, .08);
+    }
+
+    .emo .lb {
+      font-size: 14px;
+      letter-spacing: .1em;
+    }
+
+    .emo.sel {
+      box-shadow: 0 0 0 2px var(--ink);
+    }
+
+    .q {
+      margin: 0 0 34px;
+    }
+
+    .q .qt {
+      font-size: 14px;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+
+    .q .qt em {
+      font-style: normal;
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 8px;
+      letter-spacing: .04em;
+    }
+
+    .opts {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .opt {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      font-size: 14px;
+      letter-spacing: .06em;
+      text-align: left;
+      width: 100%;
+    }
+
+    .opt .mk {
+      width: 18px;
+      height: 18px;
+      flex: none;
+      border-radius: 50%;
+      border: 1px solid rgba(44, 42, 38, .3);
+      position: relative;
+    }
+
+    .opt.sel .mk::after {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: var(--ink);
+    }
+
+    .opt.sel {
+      border-color: var(--ink);
+    }
+
+    .stars {
+      display: flex;
+      gap: 6px;
+    }
+
+    .star-b {
+      flex: 1;
+      min-height: 52px;
+      min-width: 44px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 3px;
+      font-size: 20px;
+      color: rgba(44, 42, 38, .22);
+      transition: transform .15s ease;
+    }
+
+    .star-b:active {
+      transform: scale(.94);
+    }
+
+    .star-b.lit {
+      color: var(--ink);
+    }
+
+    .star-b.cur {
+      border-color: var(--ink);
+    }
+
+    .star-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .06em;
+      margin-top: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      font: inherit;
+      /* iOS はフォーカス時に 16px 未満だと拡大するので 16px */
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 12px 14px;
+      resize: vertical;
+      -webkit-appearance: none;
+    }
+
+    .primary {
+      display: block;
+      width: 100%;
+      background: var(--ink);
+      color: var(--cream);
+      border-radius: 999px;
+      padding: 16px;
+      font-size: 15px;
+      letter-spacing: .12em;
+      text-align: center;
+      min-height: 52px;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    .primary:disabled {
+      opacity: .32;
+    }
+
+    .primary:active:not(:disabled) {
+      transform: scale(.985);
+    }
+
+    .ghost {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 14px;
+      min-height: 48px;
+      font-size: 13px;
+      letter-spacing: .08em;
+      color: var(--muted);
+    }
+
+    .sending {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 80px 0;
+    }
+
+    .spin {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      border-top-color: var(--ink);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #doneWrap {
+      text-align: center;
+    }
+
+    #donePaper {
+      display: inline-block;
+      background: var(--cream);
+      box-shadow: 0 10px 40px rgba(60, 50, 30, .22);
+      line-height: 0;
+      margin: 6px 0 26px;
+    }
+
+    #doneCv {
+      display: block;
+      width: min(70vw, 300px);
+      aspect-ratio: 210 / 297;
+    }
+
+    .done-msg {
+      font-size: 15px;
+      letter-spacing: .08em;
+      line-height: 2;
+    }
+
+    .done-note {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .04em;
+      line-height: 1.9;
+      margin: 16px auto 30px;
+      max-width: 22em;
+    }
+
+    /* ============ #my ビュー ============ */
+    #myview {
+      padding: calc(26px + var(--safe-t)) 16px calc(40px + var(--safe-b));
+    }
+
+    #myview .mv-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 34px;
+      padding: 6px 4px 0;
+    }
+
+    #myview .mv-head .ja {
+      height: 128px;
+      width: auto;
+    }
+
+    #myview .mv-head .en {
+      width: min(46vw, 220px);
+      height: auto;
+      margin-bottom: 4px;
+    }
+
+    #myview figure {
+      margin: 0 0 34px;
+    }
+
+    #myview figure img {
+      width: 100%;
+      background: var(--sunk);
+      border: 4px solid #fff;
+      box-shadow: 0 2px 6px rgba(60, 50, 30, .1), 0 10px 26px rgba(60, 50, 30, .08);
+    }
+
+    #myview figcaption {
+      font-size: 12px;
+      letter-spacing: .08em;
+      color: var(--sub);
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+    }
+
+    #myview figcaption .n {
+      font-family: var(--en);
+      font-size: 11px;
+      letter-spacing: .18em;
+      color: var(--muted);
+    }
+
+    /* ============ デバッグ ============ */
+    #debug {
+      position: fixed;
+      right: 8px;
+      top: calc(8px + var(--safe-t));
+      z-index: 95;
+      background: rgba(255, 253, 248, .96);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 168px;
+      box-shadow: 0 6px 20px rgba(60, 50, 30, .16);
+    }
+
+    #debug input {
+      font: inherit;
+      font-size: 16px;
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    #debug button {
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 6px;
+      background: #fff;
+    }
+
+    #debug .hd {
+      font-family: var(--en);
+      font-size: 10px;
+      letter-spacing: .16em;
+      color: var(--muted);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      #fxCard.rise,
+      .hero-foot .arrow {
+        transition-duration: .4s;
+        animation: none;
+      }
+    }
+
+    /* ============ レスポンシブ(タブレット / PC) ============
+       スマホ=2列 / タブレット=3〜4列 / PC=5列。コンテンツ幅を絞り左右マージンを確保 */
+    #collection {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    @media (min-width: 640px) {
+      #collection {
+        padding-left: clamp(24px, 5vw, 72px);
+        padding-right: clamp(24px, 5vw, 72px);
+      }
+
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+      }
+
+      /* 下部固定ボタンは transform を使わず中央寄せ(.away の transform と競合させない) */
+      #leafletBtn {
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: min(480px, 86vw);
+      }
+
+      #sheet {
+        padding-left: max(20px, calc(50vw - 320px));
+        padding-right: max(20px, calc(50vw - 320px));
+      }
+
+      #myview {
+        max-width: 900px;
+        margin: 0 auto;
+        padding-left: clamp(24px, 5vw, 56px);
+        padding-right: clamp(24px, 5vw, 56px);
+      }
+    }
+
+    @media (min-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+      }
+    }
+
+    @media (min-width: 1180px) {
+      .grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main id="home">
+    <section id="hero">
+      <canvas id="heroCv"></canvas>
+      <img class="hero-ja" src="assets/visit/title-ja.svg" alt="モノにこころをあずけておりまして">
+      <img class="hero-en" src="assets/visit/title-en.svg" alt="somehow, my heart is with those things">
+      <div class="hero-foot">
+        <span class="count" id="progress">0 / 40</span>
+        <span class="arrow"></span>
+      </div>
+    </section>
+    <section id="collection"></section>
+  </main>
+
+  <section id="myview" hidden></section>
+
+  <button id="leafletBtn" class="away">気になった作品でリーフレットをつくる</button>
+  <button id="nfcBtn" hidden>タグをスキャン</button>
+
+  <!-- リーフレット手順1: 作品えらび -->
+  <div id="slotbar" hidden>
+    <div class="bar-head">
+      <span class="ttl">3つの作品をえらぶ</span>
+      <button class="quit" id="slotQuit">やめる</button>
+    </div>
+    <div class="slots" id="slots"></div>
+    <p class="bar-note" id="slotNote">タグを読むか、コレクションの取得済みカードをタップしてください。1つめが「もっともお気に入り」になります。</p>
+    <button class="primary" id="slotNext" style="margin-top:12px" disabled>つぎへ</button>
+  </div>
+
+  <!-- リーフレット手順2〜: シート -->
+  <div id="sheet" hidden>
+    <div class="sheet-head">
+      <button class="back" id="sheetBack" aria-label="もどる">‹</button>
+      <span class="dots" id="sheetDots"><i></i><i></i><i></i></span>
+    </div>
+
+    <!-- 手順2: 気持ち -->
+    <div class="step" id="stepEmotion" hidden>
+      <h2>いまの気持ちをえらぶ<span class="sub">Choose your feeling</span></h2>
+      <p class="lead">えらんだ気持ちが、リーフレットの色になります。</p>
+      <div class="emos" id="emos"></div>
+    </div>
+
+    <!-- 手順3: アンケート -->
+    <div class="step" id="stepSurvey" hidden>
+      <h2>すこしだけ、おきかせください<span class="sub">A few questions</span></h2>
+      <p class="lead">今後の展示づくりの参考にさせていただきます。</p>
+
+      <div class="q">
+        <div class="qt">ご来場のきっかけ</div>
+        <div class="opts" id="qVisit"></div>
+      </div>
+      <div class="q">
+        <div class="qt">あなたについて</div>
+        <div class="opts" id="qWho"></div>
+      </div>
+      <div class="q">
+        <div class="qt">展示の満足度</div>
+        <div class="stars" id="qSat"></div>
+        <div class="star-legend"><span>まだまだ</span><span>とても満足</span></div>
+      </div>
+      <div class="q">
+        <div class="qt">こころが動いたこと<em>任意</em></div>
+        <textarea id="qComment" maxlength="2000" placeholder="展示の中でもっともこころが動いたこと、その他コメント"></textarea>
+      </div>
+
+      <button class="primary" id="surveySubmit" disabled>リーフレットをつくる</button>
+      <p class="bar-note" style="text-align:center">送信すると、会場のプリンターから印刷されます。</p>
+    </div>
+
+    <!-- 送信中 -->
+    <div class="step" id="stepSending" hidden>
+      <div class="sending">
+        <div class="spin"></div>
+        <p class="lead" id="sendingMsg" style="margin:0">リーフレットを送っています…</p>
+      </div>
+    </div>
+
+    <!-- 失敗 -->
+    <div class="step" id="stepError" hidden>
+      <h2>送信できませんでした<span class="sub">Something went wrong</span></h2>
+      <p class="lead">電波の状態をご確認のうえ、もう一度おためしください。つくったリーフレットは残っています。</p>
+      <button class="primary" id="retryBtn">もう一度おくる</button>
+      <button class="ghost" id="errQuit">やめてコレクションにもどる</button>
+    </div>
+
+    <!-- 完了 -->
+    <div class="step" id="stepDone" hidden>
+      <div id="doneWrap">
+        <div id="donePaper"><canvas id="doneCv"></canvas></div>
+        <p class="done-msg">あなただけのリーフレットが<br>できました。<br>まもなくプリンターから出てきます。</p>
+        <p class="done-note">表面のQRコードを読み取ると、えらんだ3作品をあとからいつでも大きく見返せます。</p>
+        <button class="primary" id="doneBack">コレクションにもどる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細ビュー -->
+  <div id="detail" hidden>
+    <div id="detailStage"><img id="detailImg" alt=""></div>
+    <div id="detailBar">
+      <span class="t" id="detailTitle">
+        <span class="hint">ピンチ / ダブルタップで拡大できます</span>
+      </span>
+      <button id="detailClose" aria-label="閉じる">×</button>
+    </div>
+  </div>
+
+  <!-- ゲット演出 -->
+  <div id="getfx" hidden>
+    <div class="veil"></div>
+    <div id="fxCard">
+      <div class="face front"><img id="fxImg" alt=""></div>
+      <div class="face back"><img src="assets/visit/title-en.svg" alt="somehow, my heart is with those things"></div>
+    </div>
+    <div id="fxTitle">
+      <div class="t"></div>
+      <div class="s"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="debug" hidden>
+    <span class="hd">DEBUG</span>
+    <input id="dbgId" type="text" inputmode="text" placeholder="w01" autocomplete="off">
+    <button id="dbgScan">スキャン模擬</button>
+    <button id="dbgRandom">ランダム5作品取得</button>
+    <button id="dbgClear">全消去</button>
+  </div>
+
+  <script src="assets/visit/qr.js"></script>
+  <script src="assets/visit/graphic.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      /* =====================================================================
+         定数・ユーティリティ
+      ===================================================================== */
+      var LG = window.LeafletGraphic;
+      var EMOTIONS = (LG && LG.EMOTIONS) || [];
+      var LS_COL = "pmv.collection";
+      var LS_LEAF = "pmv.leaflet";
+      var LS_SEED = "pmv.heroSeed";
+      var HERO_MAX_W = 820;    // ヒーローの実描画幅上限(端末負荷対策)
+      var HERO_FPS = 30;       // ブロブの動きは非常にゆっくりなので 30fps で十分
+      var PRINT_W = 2480, PRINT_H = 3508;
+
+      var $ = function (id) { return document.getElementById(id); };
+      var on = function (el, ev, fn, opts) { if (el && el.addEventListener) el.addEventListener(ev, fn, opts); };
+      var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var nextPaint = function () {
+        // rAF は非表示タブ/画面OFFで発火しない。描画待ちの意図は保ちつつ、
+        // 200ms 上限のフォールバックで固まりを防ぐ(300ppiレンダ前の UI 反映待ちに使用)
+        return new Promise(function (r) {
+          var done = false, fin = function () { if (!done) { done = true; r(); } };
+          requestAnimationFrame(function () { requestAnimationFrame(fin); });
+          setTimeout(fin, 200);
+        });
+      };
+      var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+      var pad2 = function (id) { return String(id || "").replace(/^w/, ""); };
+
+      function readJSON(key, fallback) {
+        try {
+          var raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          var v = JSON.parse(raw);
+          return (v && typeof v === "object") ? v : fallback;
+        } catch (e) { return fallback; }
+      }
+      function writeJSON(key, val) {
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* 容量超過等は無視 */ }
+      }
+
+      var toastTimer = null;
+      function toast(msg) {
+        var el = $("toast");
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add("on");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.classList.remove("on"); }, 2600);
+      }
+
+      /* =====================================================================
+         状態
+      ===================================================================== */
+      var works = [];                 // works.json
+      var sections = [];              // sections.json
+      var byId = {};                  // id -> work
+      var collection = readJSON(LS_COL, {}) || {};
+      var leaflet = normalizeLeaflet(readJSON(LS_LEAF, null));
+      var cells = {};                 // id -> グリッドセル要素
+      var view = "home";              // home | my
+      var busyGet = false;            // ゲット演出中
+
+      function normalizeLeaflet(v) {
+        v = v || {};
+        if (v.sent) v = {};   // 送信済みのままリロードされたら最初から(二重印刷防止)
+        return {
+          active: !!v.active,
+          step: (typeof v.step === "number" && v.step >= 1 && v.step <= 3) ? v.step : 1,
+          slots: Array.isArray(v.slots) ? v.slots.slice(0, 3) : [],
+          emotion: typeof v.emotion === "string" ? v.emotion : null,
+          spec: (v.spec && typeof v.spec === "object") ? v.spec : null,
+          token: (typeof v.token === "string" && /^[A-Za-z0-9]{10,32}$/.test(v.token)) ? v.token : null,
+          surveyDraft: (v.surveyDraft && typeof v.surveyDraft === "object") ? v.surveyDraft : {}
+        };
+      }
+      function saveLeaflet() { writeJSON(LS_LEAF, leaflet); }
+      function saveCollection() { writeJSON(LS_COL, collection); }
+      var gotCount = function () { return Object.keys(collection).length; };
+
+      /* =====================================================================
+         画像読み込み(graphic-lab.html と同じ __focus / __crop 付与)
+      ===================================================================== */
+      var imgCache = new Map();
+      function loadImages(ids) {
+        return Promise.all((ids || []).map(function (id) {
+          if (!id || imgCache.has(id)) return null;
+          var im = new Image();
+          im.decoding = "async";
+          im.src = "assets/posters/" + id + ".main.jpg";
+          var w = byId[id];
+          if (w && w.focus) im.__focus = w.focus;
+          if (w && w.crop) im.__crop = w.crop;
+          imgCache.set(id, im);
+          // decode() は非表示タブで保留され続ける(Chrome)ため onload で待つ。
+          // デコードは初回 drawImage 時に同期で行われる(1回きりなので許容)。
+          return new Promise(function (res) {
+            im.onload = function () { res(); };
+            im.onerror = function () { imgCache.delete(id); res(); };
+          });
+        })).then(function () { return imgCache; });
+      }
+
+      /* =====================================================================
+         タイポグラフィ(assets/leaflet.svg + Google Fonts data-URI 埋め込み)
+         graphic-lab.html の buildFontCss / svgToImg / typoAt をそのまま流用
+      ===================================================================== */
+      function b64(buf) {
+        var u8 = new Uint8Array(buf), s = "", CH = 0x8000;
+        for (var i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+        return btoa(s);
+      }
+      async function buildFontCss(allText) {
+        var families = [["Cormorant Infant", "400;500;700"], ["Shippori Mincho", "400;500;700"]];
+        var css = "";
+        for (var i = 0; i < families.length; i++) {
+          var fam = families[i][0], wts = families[i][1];
+          var api = "https://fonts.googleapis.com/css2?family=" + fam.replace(/ /g, "+") +
+            ":wght@" + wts + "&text=" + encodeURIComponent(allText);
+          var c = await fetch(api).then(function (r) { return r.text(); });
+          var urls = [...new Set([...c.matchAll(/url\((https:[^)]+)\)/g)].map(function (m) { return m[1]; }))];
+          for (var j = 0; j < urls.length; j++) {
+            var buf = await fetch(urls[j]).then(function (x) { return x.arrayBuffer(); });
+            c = c.split(urls[j]).join("data:font/woff2;base64," + b64(buf));
+          }
+          css += c + "\n";
+        }
+        return css;
+      }
+      function svgToImg(markup) {
+        return new Promise(function (res, rej) {
+          var url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+          var im = new Image();
+          im.onload = function () { URL.revokeObjectURL(url); res(im); };
+          im.onerror = function (e) { URL.revokeObjectURL(url); rej(e); };
+          im.src = url;
+        });
+      }
+
+      var typoMarkup = null;
+      var typoReady = (async function () {
+        try {
+          var raw = await fetch("assets/leaflet.svg").then(function (r) { return r.text(); });
+          var doc = new DOMParser().parseFromString(raw, "image/svg+xml");
+          var chars = new Set(" ");
+          doc.querySelectorAll("text").forEach(function (t) {
+            for (var ch of t.textContent) chars.add(ch);
+          });
+          var fontCss = "";
+          try { fontCss = await buildFontCss([...chars].join("")); } catch (e) { console.warn("fonts", e); }
+          var styleEl = doc.documentElement.querySelector("style");
+          if (styleEl) {
+            styleEl.textContent = fontCss + styleEl.textContent
+              .replace(/font-family:\s*ATC-[^;]+;/g, "font-family:'Cormorant Infant','Shippori Mincho',serif;");
+          }
+          typoMarkup = new XMLSerializer().serializeToString(doc.documentElement);
+        } catch (e) { console.warn("typo", e); }
+      })();
+
+      var typoCache = new Map();
+      async function typoAt(w, h) {
+        await typoReady;
+        if (!typoMarkup) return null;
+        var key = w + "x" + h;
+        if (typoCache.has(key)) return typoCache.get(key);
+        var sized = typoMarkup.replace(/^<svg\b[^>]*>/, function (m) {
+          return m.replace(/\s(width|height)="[^"]*"/g, "")
+            .replace(/^<svg/, '<svg width="' + w + '" height="' + h + '"');
+        });
+        try {
+          var im = await svgToImg(sized);
+          typoCache.set(key, im);
+          return im;
+        } catch (e) { console.warn("typoAt", e); return null; }
+      }
+
+      /* =====================================================================
+         QR(graphic-lab.html の drawQrPlaceholder と同じ幾何)
+      ===================================================================== */
+      // QR トークン: 推測不能な乱数文字列。#my/<token> がサーバー経由で3作品に解決される。
+      // 印刷前に QR へ焼き込む必要があるためクライアントで生成し、ジョブ送信時にサーバーへ保存する。
+      function genToken() {
+        var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var buf = new Uint8Array(14);
+        if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(buf);
+        else for (var j = 0; j < buf.length; j++) buf[j] = Math.floor(Math.random() * 256);
+        var s = "";
+        for (var i = 0; i < buf.length; i++) s += chars[buf[i] % chars.length];
+        return s;
+      }
+      function ensureToken() {
+        if (!leaflet.token) { leaflet.token = genToken(); saveLeaflet(); }
+        return leaflet.token;
+      }
+      function myUrl() {
+        return location.origin + location.pathname + "#my/" + ensureToken();
+      }
+      function drawQr(ctx, W, text) {
+        if (!ctx || typeof window.qrcode !== "function") return false;
+        var q;
+        try {
+          q = window.qrcode(0, "M");
+          q.addData(text);
+          q.make();
+        } catch (e) { console.warn("qr", e); return false; }
+        var u = W / 1683.78;               // viewBox 単位 → キャンバス px
+        var size = 197 * u;
+        var x = (1683.78 - 93) * u - size, y = 2094.6 * u;
+        var n = q.getModuleCount(), cell = size / n;
+        ctx.save();
+        ctx.fillStyle = "#2C2A26";
+        for (var r = 0; r < n; r++) {
+          for (var c = 0; c < n; c++) {
+            // モジュールは隙間なし(+0.5px 重ねて AA の継ぎ目を消す)・白背景なし
+            if (q.isDark(r, c)) ctx.fillRect(x + c * cell, y + r * cell, cell + 0.5, cell + 0.5);
+          }
+        }
+        ctx.restore();
+        return true;
+      }
+
+      /* =====================================================================
+         ヒーロー(常時アニメーション)
+      ===================================================================== */
+      var hero = {
+        cv: null, spec: null, images: new Map(),
+        raf: 0, t0: 0, last: 0, visible: true, paused: false, running: false
+      };
+
+      function pickRandom(arr, n) {
+        var pool = arr.slice(), out = [];
+        while (out.length < n && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+        return out;
+      }
+
+      function buildHeroSpec() {
+        if (!LG) return;
+        var seed = readJSON(LS_SEED, null);
+        seed = (seed && typeof seed.v === "number") ? seed.v : Math.floor(Math.random() * 1e6);
+        writeJSON(LS_SEED, { v: seed });
+        var got = Object.keys(collection).filter(function (id) { return byId[id]; });
+        var color = (EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)] || { hex: "#A6CFE3" }).hex;
+        var ids;
+        if (got.length >= 3) {
+          ids = pickRandom(got, 3);
+          loadImages(ids).then(function (m) { hero.images = m; }).catch(function () { });
+        } else {
+          ids = ["", "", ""];       // 画像なし=色ブロブのみ
+          hero.images = new Map();
+        }
+        hero.spec = LG.makeSpec({ seed: seed, color: color, workIds: ids });
+      }
+
+      function sizeHero() {
+        var cv = hero.cv;
+        if (!cv) return;
+        var r = cv.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        var scale = Math.min(window.devicePixelRatio || 1, 2);
+        if (r.width * scale > HERO_MAX_W) scale = HERO_MAX_W / r.width;
+        var w = Math.max(2, Math.round(r.width * scale));
+        var h = Math.max(2, Math.round(r.height * scale));
+        if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+        cv.__lgKey = "hero";
+      }
+
+      // spec は A4縦基準の正規化座標(r はキャンバス幅比)。PC などの横長ヒーローでは
+      // r をそのまま使うとブロブが巨大化するので、縦横比に応じて縮小した派生 spec を使う
+      function heroDisplaySpec() {
+        var cv = hero.cv, spec = hero.spec;
+        if (!cv || !spec) return spec;
+        var k = Math.min(1, (cv.height / cv.width) / 0.85);
+        if (k > 0.999) return spec;
+        var cache = hero.__disp;
+        if (cache && cache.base === spec && Math.abs(cache.k - k) < 0.01) return cache.spec;
+        var out = Object.assign({}, spec, {
+          blobs: spec.blobs.map(function (b) { return Object.assign({}, b, { r: b.r * k }); })
+        });
+        hero.__disp = { base: spec, k: k, spec: out };
+        return out;
+      }
+
+      function heroFrame(now) {
+        hero.raf = 0;
+        if (!hero.running) return;
+        hero.raf = requestAnimationFrame(heroFrame);
+        if (now - hero.last < 1000 / HERO_FPS) return;
+        hero.last = now;
+        if (!hero.cv || !hero.spec || !LG) return;
+        try {
+          LG.render(hero.cv, heroDisplaySpec(), hero.images, { t: (now - hero.t0) / 1000 });
+        } catch (e) { stopHero(); console.warn("hero", e); }
+      }
+      function startHero() {
+        if (hero.running || !hero.cv || !hero.spec) return;
+        if (document.hidden || !hero.visible || hero.paused) return;
+        hero.running = true;
+        if (!hero.t0) hero.t0 = performance.now();
+        hero.last = 0;
+        hero.raf = requestAnimationFrame(heroFrame);
+      }
+      function stopHero() {
+        hero.running = false;
+        if (hero.raf) cancelAnimationFrame(hero.raf);
+        hero.raf = 0;
+      }
+      function refreshHero() {
+        buildHeroSpec();
+        sizeHero();
+        if (hero.cv && hero.spec && LG) {
+          try { LG.render(hero.cv, heroDisplaySpec(), hero.images, { t: 0 }); } catch (e) { }
+        }
+        startHero();
+      }
+
+      /* =====================================================================
+         コレクション描画
+      ===================================================================== */
+      function updateProgress() {
+        var el = $("progress");
+        if (el) el.textContent = gotCount() + " / " + works.length;
+      }
+
+      function buildCollection() {
+        var root = $("collection");
+        if (!root) return;
+        root.textContent = "";
+        cells = {};
+        var secs = sections.length ? sections : [{ n: 1, title: "作品", en: "Works" }];
+        secs.forEach(function (s) {
+          var list = works.filter(function (w) { return w.section === s.n; });
+          if (!list.length) return;
+          var sec = document.createElement("div");
+          sec.className = "sec";
+
+          var head = document.createElement("div");
+          head.className = "sec-head";
+          var n = document.createElement("span");
+          n.className = "sec-n";
+          n.textContent = String(s.n).padStart(2, "0");
+          var ja = document.createElement("span");
+          ja.className = "sec-ja";
+          ja.textContent = s.title || "";
+          var en = document.createElement("span");
+          en.className = "sec-en";
+          en.textContent = s.en || "";
+          head.append(n, ja, en);
+
+          var grid = document.createElement("div");
+          grid.className = "grid";
+          list.forEach(function (w) { grid.appendChild(makeCell(w)); });
+
+          sec.append(head, grid);
+          root.appendChild(sec);
+        });
+        updateProgress();
+      }
+
+      function makeCell(w) {
+        var el = document.createElement("button");
+        el.className = "cell";
+        el.dataset.id = w.id;
+        el.setAttribute("aria-label", w.title || w.id);
+        var glow = document.createElement("span");
+        glow.className = "glow";
+        el.appendChild(glow);
+        cells[w.id] = el;
+        paintCell(w.id);
+        on(el, "click", function () { onCellTap(w.id); });
+        return el;
+      }
+
+      function paintCell(id) {
+        var el = cells[id];
+        var w = byId[id];
+        if (!el || !w) return;
+        var got = !!collection[id];
+        var glow = el.querySelector(".glow");
+        el.textContent = "";
+        if (glow) el.appendChild(glow);
+        el.classList.toggle("got", got);
+        el.classList.toggle("locked", !got);
+        el.classList.toggle("picked", leaflet.active && leaflet.slots.indexOf(id) >= 0);
+        if (got) {
+          var im = document.createElement("img");
+          im.loading = "lazy";
+          im.decoding = "async";
+          im.alt = w.title || "";
+          im.src = "assets/posters/" + id + ".thumb.jpg";
+          el.appendChild(im);
+        } else {
+          var no = document.createElement("span");
+          no.className = "no";
+          no.textContent = pad2(id);
+          el.appendChild(no);
+        }
+      }
+
+      function onCellTap(id) {
+        if (leaflet.active && leaflet.step === 1) {
+          if (!collection[id]) { toast("まだ取得していない作品です"); return; }
+          fillSlot(id);
+          return;
+        }
+        if (collection[id]) openDetail(id);
+        else toast("会場のタグを読み取ると開きます");
+      }
+
+      /* =====================================================================
+         ゲット処理(URL / Web NFC / デバッグ 共通)
+      ===================================================================== */
+      function handleGet(id) {
+        if (!id || !byId[id]) { toast("作品が見つかりませんでした"); return; }
+        if (busyGet) return;   // 演出中の多重スキャンは無視
+        if (leaflet.active && leaflet.step === 1) {
+          if (!collection[id]) { collection[id] = Date.now(); saveCollection(); paintCell(id); updateProgress(); }
+          fillSlot(id);
+          return;
+        }
+        if (collection[id]) { openDetail(id); return; }
+        collection[id] = Date.now();
+        saveCollection();
+        paintCell(id);
+        updateProgress();
+        playGet(id);
+      }
+
+      /* --- ゲット演出(CSS 3D + FLIP。transform / opacity のみアニメ) --- */
+      var fxTimer = null;
+      function playGet(id) {
+        var w = byId[id], fx = $("getfx"), card = $("fxCard"), img = $("fxImg"), ttl = $("fxTitle");
+        if (!w || !fx || !card || !img) { flashCell(id); return; }
+        busyGet = true;
+        hero.paused = true; stopHero();
+
+        img.src = "assets/posters/" + id + ".thumb.jpg";
+        img.alt = w.title || "";
+        if (ttl) {
+          ttl.classList.remove("on");
+          var t = ttl.querySelector(".t"), s = ttl.querySelector(".s");
+          if (t) t.textContent = w.title || "";
+          if (s) s.textContent = pad2(id) + " / " + String(works.length).padStart(2, "0");
+        }
+        card.classList.remove("rise");
+        card.style.transition = "";
+        card.style.transform = "";
+        fx.hidden = false;
+        document.body.classList.add("lock");
+
+        requestAnimationFrame(function () {
+          fx.classList.add("on");
+          requestAnimationFrame(function () {
+            card.classList.add("rise");
+          });
+        });
+
+        var advanced = false;
+        var advance = function () {
+          if (advanced) return;
+          advanced = true;
+          clearTimeout(fxTimer);
+          fx.removeEventListener("click", advance);
+          flyToCell(id);
+        };
+        fxTimer = setTimeout(advance, 2900);   // 1.2s のせり上がり + 1.5s の余韻
+        on(fx, "click", advance);
+        setTimeout(function () { if (ttl) ttl.classList.add("on"); }, 1250);
+      }
+
+      function flyToCell(id) {
+        var fx = $("getfx"), card = $("fxCard"), ttl = $("fxTitle");
+        if (!fx || !card) { endGet(); return; }
+        if (ttl) ttl.classList.remove("on");
+        var cell = cells[id];
+        if (!cell) { finishFly(); return; }
+
+        // セルを画面内へ入れてから位置を測る(FLIP)
+        var vr = cell.getBoundingClientRect();
+        if (vr.top < 60 || vr.bottom > window.innerHeight - 60) {
+          var y = window.scrollY + vr.top - (window.innerHeight / 2 - vr.height / 2);
+          window.scrollTo(0, Math.max(0, y));
+        }
+        requestAnimationFrame(function () {
+          var to = cell.getBoundingClientRect();
+          var from = card.getBoundingClientRect();
+          if (!from.width || !to.width) { finishFly(); return; }
+          var sx = to.width / from.width;
+          var dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+          var dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+          card.style.transition = "transform .62s cubic-bezier(.5,0,.2,1), opacity .62s ease";
+          card.style.transform = "translate3d(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px), 0) rotateX(-900deg) scale(" + sx + ")";
+          card.style.opacity = ".2";
+          fx.classList.remove("on");
+          setTimeout(function () { flashCell(id); finishFly(); }, 600);
+        });
+
+        function finishFly() {
+          setTimeout(endGet, 60);
+        }
+      }
+
+      function endGet() {
+        var fx = $("getfx"), card = $("fxCard");
+        if (fx) { fx.hidden = true; fx.classList.remove("on"); }
+        if (card) {
+          card.classList.remove("rise");
+          card.style.transition = "";
+          card.style.transform = "";
+          card.style.opacity = "";
+        }
+        releaseLock();
+        busyGet = false;
+        hero.paused = false;
+        refreshHero();
+      }
+
+      function flashCell(id) {
+        var cell = cells[id];
+        if (!cell) return;
+        cell.classList.remove("flash");
+        void cell.offsetWidth;
+        cell.classList.add("flash");
+        setTimeout(function () { cell.classList.remove("flash"); }, 1200);
+      }
+
+      /* =====================================================================
+         詳細ビュー(ピンチ / ダブルタップズーム)
+      ===================================================================== */
+      var dz = { s: 1, x: 0, y: 0, s0: 1, x0: 0, y0: 0, d0: 0, cx: 0, cy: 0, px: 0, py: 0, mode: 0, lastTap: 0 };
+
+      function applyDz() {
+        var im = $("detailImg");
+        if (!im) return;
+        var r = im.getBoundingClientRect();
+        var w = r.width / dz.s, h = r.height / dz.s;
+        var mx = Math.max(0, (w * dz.s - w) / 2), my = Math.max(0, (h * dz.s - h) / 2);
+        dz.x = clamp(dz.x, -mx, mx);
+        dz.y = clamp(dz.y, -my, my);
+        im.style.transform = "translate3d(" + dz.x + "px," + dz.y + "px,0) scale(" + dz.s + ")";
+      }
+
+      function openDetail(id) {
+        var w = byId[id], d = $("detail"), im = $("detailImg"), t = $("detailTitle");
+        if (!w || !d || !im) return;
+        dz.s = 1; dz.x = 0; dz.y = 0;
+        im.style.transition = "none";
+        im.style.transform = "";
+        im.alt = w.title || "";
+        im.src = "assets/posters/" + id + ".full.jpg";
+        if (t) {
+          t.textContent = w.title || "";
+          var hint = document.createElement("span");
+          hint.className = "hint";
+          hint.textContent = pad2(id) + " — ピンチ / ダブルタップで拡大できます";
+          t.appendChild(hint);
+        }
+        d.hidden = false;
+        document.body.classList.add("lock");
+        requestAnimationFrame(function () { d.classList.add("on"); });
+      }
+      function closeDetail() {
+        var d = $("detail");
+        if (!d || d.hidden) return;
+        d.classList.remove("on");
+        setTimeout(function () {
+          d.hidden = true;
+          var im = $("detailImg");
+          if (im) im.removeAttribute("src");
+          releaseLock();
+        }, 300);
+      }
+
+      function initDetailGestures() {
+        var stage = $("detailStage"), im = $("detailImg");
+        if (!stage || !im) return;
+        on(stage, "touchstart", function (e) {
+          im.style.transition = "none";
+          if (e.touches.length === 2) {
+            dz.mode = 2;
+            var a = e.touches[0], b = e.touches[1];
+            dz.d0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1;
+            dz.s0 = dz.s; dz.x0 = dz.x; dz.y0 = dz.y;
+            var r = stage.getBoundingClientRect();
+            dz.cx = (a.clientX + b.clientX) / 2 - (r.left + r.width / 2);
+            dz.cy = (a.clientY + b.clientY) / 2 - (r.top + r.height / 2);
+          } else if (e.touches.length === 1) {
+            dz.mode = dz.s > 1.02 ? 1 : 0;
+            dz.px = e.touches[0].clientX; dz.py = e.touches[0].clientY;
+            dz.x0 = dz.x; dz.y0 = dz.y;
+            // ダブルタップ
+            var now = Date.now();
+            if (now - dz.lastTap < 300) {
+              dz.lastTap = 0;
+              im.style.transition = "transform .28s ease";
+              if (dz.s > 1.02) { dz.s = 1; dz.x = 0; dz.y = 0; }
+              else {
+                dz.s = 2.5;
+                var rr = stage.getBoundingClientRect();
+                dz.x = -(e.touches[0].clientX - (rr.left + rr.width / 2)) * 1.5;
+                dz.y = -(e.touches[0].clientY - (rr.top + rr.height / 2)) * 1.5;
+              }
+              applyDz();
+              dz.mode = 0;
+            } else dz.lastTap = now;
+          }
+        }, { passive: true });
+
+        on(stage, "touchmove", function (e) {
+          if (dz.mode === 2 && e.touches.length === 2) {
+            e.preventDefault();
+            var a = e.touches[0], b = e.touches[1];
+            var d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1;
+            var ns = clamp(dz.s0 * (d / dz.d0), 1, 4);
+            var k = ns / dz.s0;
+            dz.s = ns;
+            dz.x = dz.cx - (dz.cx - dz.x0) * k;
+            dz.y = dz.cy - (dz.cy - dz.y0) * k;
+            applyDz();
+          } else if (dz.mode === 1 && e.touches.length === 1) {
+            e.preventDefault();
+            dz.x = dz.x0 + (e.touches[0].clientX - dz.px);
+            dz.y = dz.y0 + (e.touches[0].clientY - dz.py);
+            applyDz();
+          }
+        }, { passive: false });
+
+        on(stage, "touchend", function () {
+          if (dz.s < 1.02) {
+            im.style.transition = "transform .25s ease";
+            dz.s = 1; dz.x = 0; dz.y = 0; applyDz();
+          }
+          dz.mode = 0;
+        }, { passive: true });
+
+        on(stage, "dblclick", function (e) {
+          im.style.transition = "transform .28s ease";
+          if (dz.s > 1.02) { dz.s = 1; dz.x = 0; dz.y = 0; }
+          else {
+            var r = stage.getBoundingClientRect();
+            dz.s = 2.5;
+            dz.x = -(e.clientX - (r.left + r.width / 2)) * 1.5;
+            dz.y = -(e.clientY - (r.top + r.height / 2)) * 1.5;
+          }
+          applyDz();
+        });
+
+        on($("detailClose"), "click", closeDetail);
+      }
+
+      /* =====================================================================
+         リーフレットモード
+      ===================================================================== */
+      var SURVEY_Q = {
+        visit: ["出展者・研究室の知人", "SNSを見て", "大学・学校関係", "たまたま通りかかって", "その他"],
+        who: ["学生", "研究・教育関係", "デザイン・クリエイティブ関係", "その他"]
+      };
+      var printJob = { promise: null, dataURL: null, key: "" };
+
+      function enterLeaflet() {
+        leaflet.active = true;
+        leaflet.step = 1;
+        if (!Array.isArray(leaflet.slots)) leaflet.slots = [];
+        saveLeaflet();
+        syncLeafletUI();
+        // コレクションが見えていなければ先頭へスクロール
+        var col = $("collection");
+        if (col && window.scrollY < col.offsetTop - 40) {
+          try { window.scrollTo({ top: col.offsetTop - 8, behavior: "smooth" }); }
+          catch (e) { window.scrollTo(0, col.offsetTop - 8); }
+        }
+        toast("3つの作品をえらんでください");
+      }
+      function exitLeaflet() {
+        leaflet = normalizeLeaflet(null);
+        saveLeaflet();
+        printJob = { promise: null, dataURL: null, key: "" };
+        sheetSub = "form";
+        syncLeafletUI();
+        Object.keys(cells).forEach(paintCell);
+      }
+
+      // 詳細/ゲット演出が出ていないときだけ本体スクロールを戻す
+      function releaseLock() {
+        var d = $("detail"), g = $("getfx");
+        if ((d && !d.hidden) || (g && !g.hidden)) return;
+        document.body.classList.remove("lock");
+      }
+
+      function syncLeafletUI() {
+        var bar = $("slotbar"), sheet = $("sheet"), btn = $("leafletBtn");
+        var picking = leaflet.active && leaflet.step === 1 && view === "home";
+        document.body.classList.toggle("picking", picking);
+        if (bar) {
+          bar.hidden = !picking;
+          if (picking) requestAnimationFrame(function () { bar.classList.remove("down"); });
+        }
+        if (btn) btn.classList.toggle("away", leaflet.active || view !== "home" || heroInView);
+        if (sheet) {
+          var showSheet = leaflet.active && leaflet.step >= 2 && view === "home";
+          if (showSheet) {
+            sheet.hidden = false;
+            document.body.classList.add("lock");
+            requestAnimationFrame(function () { sheet.classList.add("on"); });
+          } else {
+            sheet.classList.remove("on");
+            if (!sheet.hidden) setTimeout(function () { if (!(leaflet.active && leaflet.step >= 2)) sheet.hidden = true; }, 300);
+            releaseLock();
+          }
+        }
+        renderSlots();
+        renderSheetStep();
+        updateBarSpace();
+      }
+
+      // スロットバーの高さを CSS 変数へ(グリッド最下段が隠れないように)
+      function updateBarSpace() {
+        var bar = $("slotbar");
+        var h = (bar && !bar.hidden) ? bar.offsetHeight : 0;
+        document.documentElement.style.setProperty("--barh", h + "px");
+      }
+
+      /* --- 手順1: スロット --- */
+      function renderSlots() {
+        var root = $("slots"), next = $("slotNext");
+        if (!root) return;
+        root.textContent = "";
+        for (var i = 0; i < 3; i++) {
+          (function (i) {
+            var id = leaflet.slots[i];
+            var el = document.createElement("div");
+            el.className = "slot" + (id ? " filled" : "");
+            el.dataset.i = String(i);
+            if (id && byId[id]) {
+              var im = document.createElement("img");
+              im.src = "assets/posters/" + id + ".thumb.jpg";
+              im.alt = byId[id].title || "";
+              el.appendChild(im);
+            } else {
+              var ph = document.createElement("span");
+              ph.className = "ph";
+              ph.textContent = String(i + 1);
+              el.appendChild(ph);
+            }
+            if (i === 0) {
+              var st = document.createElement("span");
+              st.className = "star";
+              st.textContent = "★";
+              el.appendChild(st);
+            }
+            bindSlot(el, i);
+            root.appendChild(el);
+          })(i);
+        }
+        if (next) next.disabled = leaflet.slots.filter(Boolean).length < 3;
+      }
+
+      function bindSlot(el, i) {
+        var timer = null, longed = false;
+        var start = function () {
+          longed = false;
+          clearTimeout(timer);
+          timer = setTimeout(function () {
+            longed = true;
+            if (leaflet.slots[i]) {
+              var removed = leaflet.slots[i];
+              leaflet.slots.splice(i, 1);
+              saveLeaflet();
+              renderSlots();
+              paintCell(removed);
+              toast("外しました");
+            }
+          }, 500);
+        };
+        var end = function () { clearTimeout(timer); };
+        on(el, "touchstart", start, { passive: true });
+        on(el, "touchend", end, { passive: true });
+        on(el, "touchmove", end, { passive: true });
+        on(el, "touchcancel", end, { passive: true });
+        on(el, "mousedown", start);
+        on(el, "mouseup", end);
+        on(el, "mouseleave", end);
+        on(el, "click", function () {
+          if (longed) { longed = false; return; }
+          if (i > 0 && leaflet.slots[i]) {
+            var a = leaflet.slots[0];
+            leaflet.slots[0] = leaflet.slots[i];
+            leaflet.slots[i] = a;
+            saveLeaflet();
+            renderSlots();
+            toast("1つめ(お気に入り)にしました");
+          }
+        });
+      }
+
+      function fillSlot(id) {
+        if (leaflet.slots.indexOf(id) >= 0) {
+          var root = $("slots");
+          var idx = leaflet.slots.indexOf(id);
+          var el = root && root.children[idx];
+          if (el) {
+            el.classList.remove("shake");
+            void el.offsetWidth;
+            el.classList.add("shake");
+            setTimeout(function () { el.classList.remove("shake"); }, 500);
+          }
+          toast("すでにえらんでいます");
+          return;
+        }
+        if (leaflet.slots.length >= 3) { toast("3つそろいました。「つぎへ」へ進んでください"); return; }
+        leaflet.slots.push(id);
+        saveLeaflet();
+        renderSlots();
+        paintCell(id);
+        if (leaflet.slots.length === 3) toast("3つそろいました");
+      }
+
+      /* --- シートの段階表示 --- */
+      function renderSheetStep() {
+        var e = $("stepEmotion"), s = $("stepSurvey"), sd = $("stepSending"), er = $("stepError"), dn = $("stepDone");
+        var dots = $("sheetDots"), back = $("sheetBack");
+        var st = leaflet.step;
+        if (e) e.hidden = !(st === 2);
+        if (s) s.hidden = !(st === 3 && sheetSub === "form");
+        if (sd) sd.hidden = !(st === 3 && sheetSub === "sending");
+        if (er) er.hidden = !(st === 3 && sheetSub === "error");
+        if (dn) dn.hidden = !(st === 3 && sheetSub === "done");
+        if (dots) {
+          var idx = st === 2 ? 0 : (sheetSub === "done" ? 2 : 1);
+          Array.prototype.forEach.call(dots.children, function (c, i) { c.classList.toggle("a", i === idx); });
+          dots.hidden = (sheetSub === "sending");
+        }
+        if (back) back.hidden = (sheetSub === "sending" || sheetSub === "done");
+      }
+      var sheetSub = "form";   // form | sending | error | done
+
+      /* --- 手順2: 気持ち --- */
+      function buildEmotions() {
+        var root = $("emos");
+        if (!root) return;
+        root.textContent = "";
+        EMOTIONS.forEach(function (em) {
+          var b = document.createElement("button");
+          b.className = "emo" + (leaflet.emotion === em.key ? " sel" : "");
+          b.dataset.key = em.key;
+          var sw = document.createElement("span");
+          sw.className = "sw";
+          sw.style.background = em.hex;
+          var lb = document.createElement("span");
+          lb.className = "lb";
+          lb.textContent = em.label;
+          b.append(sw, lb);
+          on(b, "click", function () { chooseEmotion(em.key); });
+          root.appendChild(b);
+        });
+      }
+
+      function chooseEmotion(key) {
+        var em = EMOTIONS.filter(function (x) { return x.key === key; })[0];
+        if (!em || !LG) return;
+        leaflet.emotion = key;
+        var ids = leaflet.slots.slice(0, 3);
+        leaflet.spec = LG.makeSpec({ seed: Date.now() % 1e6, color: em.hex, workIds: ids });
+        leaflet.token = null;   // spec が変わったら QR トークンも作り直す(ensureToken が再生成)
+        leaflet.step = 3;
+        sheetSub = "form";
+        saveLeaflet();
+        var root = $("emos");
+        if (root) Array.prototype.forEach.call(root.children, function (c) {
+          c.classList.toggle("sel", c.dataset.key === key);
+        });
+        renderSheetStep();
+        var sheet = $("sheet");
+        if (sheet) sheet.scrollTop = 0;
+        startPrintRender();   // 300ppi をバックグラウンドで開始(await は送信時)
+      }
+
+      /* --- 300ppi レンダリング(裏で走らせる) --- */
+      function startPrintRender() {
+        if (!leaflet.spec) return null;
+        var ids = leaflet.slots.slice(0, 3);
+        var key = leaflet.spec.seed + ":" + leaflet.spec.color + ":" + ids.join(",");
+        if (printJob.key === key && (printJob.promise || printJob.dataURL)) return printJob.promise;
+        var job = { key: key, dataURL: null, promise: null };
+        printJob = job;
+        job.promise = (async function () {
+          hero.paused = true; stopHero();
+          try {
+            var typo = await typoAt(PRINT_W, PRINT_H);
+            var images = await loadImages(ids);
+            await nextPaint();          // 直前の画面更新を先に描かせる
+            var cv = document.createElement("canvas");
+            cv.width = PRINT_W; cv.height = PRINT_H;
+            cv.__lgKey = "print";
+            LG.render(cv, leaflet.spec, images, { typo: typo });
+            drawQr(cv.getContext("2d"), PRINT_W, myUrl());
+            // API の上限 3.8MB に収まらなければ品質を落として再エンコード
+            var url = null;
+            var qualities = [0.85, 0.72, 0.6];
+            for (var i = 0; i < qualities.length; i++) {
+              var blob = await new Promise(function (r) { cv.toBlob(r, "image/jpeg", qualities[i]); });
+              if (!blob) throw new Error("toBlob failed");
+              url = await new Promise(function (res, rej) {
+                var fr = new FileReader();
+                fr.onload = function () { res(String(fr.result)); };
+                fr.onerror = rej;
+                fr.readAsDataURL(blob);
+              });
+              if (url.length <= 3700000) break;
+            }
+            cv.width = cv.height = 1;   // メモリ解放
+            job.dataURL = url;
+            return url;
+          } finally {
+            hero.paused = false;
+            startHero();
+          }
+        })();
+        job.promise.catch(function (e) {
+          console.warn("print render", e);
+          if (printJob === job) printJob = { promise: null, dataURL: null, key: "" }; // リトライで再レンダできるように
+        });
+        return job.promise;
+      }
+
+      /* --- 手順3: アンケート --- */
+      function buildSurvey() {
+        buildOpts("qVisit", "visit", SURVEY_Q.visit);
+        buildOpts("qWho", "who", SURVEY_Q.who);
+        var sat = $("qSat");
+        if (sat) {
+          sat.textContent = "";
+          for (var i = 1; i <= 5; i++) {
+            (function (i) {
+              var b = document.createElement("button");
+              b.className = "star-b";
+              b.dataset.v = String(i);
+              b.textContent = "★";
+              b.setAttribute("aria-label", i + "");
+              on(b, "click", function () {
+                leaflet.surveyDraft.satisfaction = i;
+                saveLeaflet();
+                paintStars();
+                checkSurvey();
+              });
+              sat.appendChild(b);
+            })(i);
+          }
+        }
+        var ta = $("qComment");
+        if (ta) {
+          ta.value = leaflet.surveyDraft.comment || "";
+          on(ta, "input", function () {
+            leaflet.surveyDraft.comment = ta.value.slice(0, 2000);
+            saveLeaflet();
+          });
+        }
+        paintStars();
+        checkSurvey();
+      }
+      function buildOpts(rootId, field, list) {
+        var root = $(rootId);
+        if (!root) return;
+        root.textContent = "";
+        list.forEach(function (label) {
+          var b = document.createElement("button");
+          b.className = "opt" + (leaflet.surveyDraft[field] === label ? " sel" : "");
+          b.dataset.v = label;
+          var mk = document.createElement("span");
+          mk.className = "mk";
+          var tx = document.createElement("span");
+          tx.textContent = label;
+          b.append(mk, tx);
+          on(b, "click", function () {
+            leaflet.surveyDraft[field] = label;
+            saveLeaflet();
+            Array.prototype.forEach.call(root.children, function (c) {
+              c.classList.toggle("sel", c.dataset.v === label);
+            });
+            checkSurvey();
+          });
+          root.appendChild(b);
+        });
+      }
+      function paintStars() {
+        var sat = $("qSat");
+        if (!sat) return;
+        var v = leaflet.surveyDraft.satisfaction || 0;
+        Array.prototype.forEach.call(sat.children, function (c, i) {
+          c.classList.toggle("lit", i < v);
+          c.classList.toggle("cur", i === v - 1);
+        });
+      }
+      function checkSurvey() {
+        var b = $("surveySubmit");
+        if (!b) return;
+        var d = leaflet.surveyDraft;
+        b.disabled = !(d.visit && d.who && d.satisfaction >= 1 && d.satisfaction <= 5);
+      }
+
+      /* --- 送信 --- */
+      async function submitJob() {
+        if (!leaflet.spec || leaflet.slots.length < 3) { toast("作品のえらび直しが必要です"); return; }
+        sheetSub = "sending";
+        renderSheetStep();
+        var msg = $("sendingMsg");
+        if (msg) msg.textContent = "リーフレットを仕上げています…";
+        try {
+          var front = printJob.dataURL || await (startPrintRender() || Promise.resolve(null));
+          if (!front) throw new Error("front render failed");
+          if (msg) msg.textContent = "リーフレットを送っています…";
+          var d = leaflet.surveyDraft || {};
+          var body = {
+            v: 1,
+            spec: leaflet.spec,
+            workIds: leaflet.slots.slice(0, 3),
+            emotion: leaflet.emotion,
+            survey: {
+              visit: String(d.visit || ""),
+              who: String(d.who || ""),
+              satisfaction: Number(d.satisfaction || 0),
+              comment: String(d.comment || "").slice(0, 2000)
+            },
+            front: front,
+            token: ensureToken()
+          };
+          var res = await fetch("api/print-jobs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          await res.json().catch(function () { return null; });
+          leaflet.sent = true;   // リロード時に記入済みアンケートを復元しない(二重印刷防止)
+          saveLeaflet();
+          sheetSub = "done";
+          renderSheetStep();
+          drawDonePreview();
+        } catch (e) {
+          console.warn("submit", e);
+          sheetSub = "error";
+          renderSheetStep();
+        }
+      }
+
+      async function drawDonePreview() {
+        var cv = $("doneCv");
+        if (!cv || !leaflet.spec || !LG) return;
+        var W = 620, H = 877;   // 2480×3508 と同じ比率
+        cv.width = W; cv.height = H;
+        cv.__lgKey = "done";
+        var ids = leaflet.slots.slice(0, 3);
+        try {
+          var images = await loadImages(ids);
+          var typo = await typoAt(W, H);
+          LG.render(cv, leaflet.spec, images, { typo: typo });
+          drawQr(cv.getContext("2d"), W, myUrl());
+        } catch (e) { console.warn("preview", e); }
+      }
+
+      /* =====================================================================
+         #my ビュー(QRからの閲覧・サーバー不要)
+      ===================================================================== */
+      function showMyView(ids) {
+        view = "my";
+        var mv = $("myview"), home = $("home");
+        if (home) home.hidden = true;
+        if (mv) mv.hidden = false;
+        stopHero();
+        syncLeafletUI();
+        var nfc = $("nfcBtn");
+        if (nfc) nfc.hidden = true;
+        if (!mv) return;
+        mv.textContent = "";
+        var head = document.createElement("div");
+        head.className = "mv-head";
+        var ja = document.createElement("img");
+        ja.className = "ja";
+        ja.src = "assets/visit/title-ja.svg";
+        ja.alt = "モノにこころをあずけておりまして";
+        var en = document.createElement("img");
+        en.className = "en";
+        en.src = "assets/visit/title-en.svg";
+        en.alt = "somehow, my heart is with those things";
+        head.append(ja, en);
+        mv.appendChild(head);
+        ids.forEach(function (id) {
+          var w = byId[id];
+          var fig = document.createElement("figure");
+          var im = document.createElement("img");
+          im.src = "assets/posters/" + id + ".full.jpg";
+          im.alt = (w && w.title) || id;
+          im.loading = "lazy";
+          im.decoding = "async";
+          im.style.cursor = "zoom-in";
+          on(im, "click", function () { openDetail(id); });   // タップでズーム閲覧
+          var cap = document.createElement("figcaption");
+          var n = document.createElement("span");
+          n.className = "n";
+          n.textContent = pad2(id);
+          var t = document.createElement("span");
+          t.textContent = (w && w.title) || "";
+          cap.append(n, t);
+          fig.append(im, cap);
+          mv.appendChild(fig);
+        });
+        var back = document.createElement("button");
+        back.className = "ghost";
+        back.textContent = "コレクションをひらく";
+        on(back, "click", function () { location.hash = ""; });
+        mv.appendChild(back);
+      }
+
+      // #my/<token> — サーバーでトークン→3作品を解決してから表示
+      function showMyViewToken(token) {
+        view = "my";
+        var mv = $("myview"), home = $("home");
+        if (home) home.hidden = true;
+        if (mv) { mv.hidden = false; mv.textContent = ""; }
+        stopHero();
+        syncLeafletUI();
+        var nfc = $("nfcBtn");
+        if (nfc) nfc.hidden = true;
+        if (!mv) return;
+        var p = document.createElement("p");
+        p.className = "mv-loading";
+        p.textContent = "リーフレットをひらいています…";
+        p.style.cssText = "text-align:center;padding:60px 0;color:var(--sub);font-size:13px;letter-spacing:.12em";
+        mv.appendChild(p);
+        fetch("api/my/" + encodeURIComponent(token), { cache: "no-store" })
+          .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+          .then(function (d) {
+            var ids = (d && d.workIds || []).filter(function (x) { return /^w\d{2}$/.test(x); }).slice(0, 3);
+            if (location.hash !== "#my/" + token) return;   // 表示中に離脱していたら何もしない
+            if (!ids.length) throw new Error("empty");
+            showMyView(ids);
+          })
+          .catch(function (e) {
+            console.warn("my token", e);
+            if (location.hash !== "#my/" + token) return;
+            p.textContent = "リーフレットが見つかりませんでした。QRコードをもう一度読み取ってみてください。";
+          });
+      }
+
+      function showHomeView() {
+        view = "home";
+        var mv = $("myview"), home = $("home");
+        if (mv) { mv.hidden = true; mv.textContent = ""; }
+        if (home) home.hidden = false;
+        var nfc = $("nfcBtn");
+        if (nfc && "NDEFReader" in window) nfc.hidden = false;
+        syncLeafletUI();
+        sizeHero();
+        startHero();
+      }
+
+      /* =====================================================================
+         ルーティング
+      ===================================================================== */
+      function route() {
+        var h = location.hash || "";
+        var m;
+        if ((m = h.match(/^#g\/(w\d{2})$/))) {
+          history.replaceState(null, "", location.pathname + location.search + "#");
+          if (view !== "home") showHomeView();
+          handleGet(m[1]);
+          return;
+        }
+        if (h === "#leaflet") {
+          history.replaceState(null, "", location.pathname + location.search + "#");
+          if (view !== "home") showHomeView();
+          enterLeaflet();
+          return;
+        }
+        if ((m = h.match(/^#my\/([\w,]+)$/))) {
+          var seg = m[1];
+          // 開発用: 作品IDの直指定も残す(本番QRはトークンのみ)
+          var ids = seg.indexOf(",") >= 0
+            ? seg.split(",").filter(function (x) { return /^w\d{2}$/.test(x); }).slice(0, 3)
+            : [];
+          if (ids.length) { showMyView(ids); return; }
+          if (/^[A-Za-z0-9]{10,32}$/.test(seg)) { showMyViewToken(seg); return; }
+        }
+        showHomeView();
+      }
+
+      /* =====================================================================
+         Web NFC(Android Chrome のみ)
+      ===================================================================== */
+      var nfcOn = false;
+      async function startNfc() {
+        var btn = $("nfcBtn");
+        if (nfcOn) { toast("スキャン中です。タグに近づけてください"); return; }
+        try {
+          var reader = new window.NDEFReader();
+          await reader.scan();
+          nfcOn = true;
+          if (btn) { btn.classList.add("on"); btn.textContent = "スキャン中"; }
+          toast("タグに近づけてください");
+          reader.onreadingerror = function () { toast("タグを読み取れませんでした"); };
+          reader.onreading = function (ev) {
+            var found = null;
+            try {
+              var recs = (ev && ev.message && ev.message.records) || [];
+              for (var i = 0; i < recs.length && !found; i++) {
+                var r = recs[i], text = "";
+                try {
+                  if (r.recordType === "url" || r.recordType === "absolute-url" || r.recordType === "text") {
+                    text = new TextDecoder(r.encoding || "utf-8").decode(r.data);
+                  }
+                } catch (e) { text = ""; }
+                var mm = text && text.match(/#g\/(w\d{2})/);
+                if (mm) found = mm[1];
+              }
+              if (!found && ev && ev.serialNumber) { /* URL レコードなし */ }
+            } catch (e) { console.warn("nfc read", e); }
+            if (found) handleGet(found);
+            else toast("このタグには作品情報がありません");
+          };
+        } catch (e) {
+          console.warn("nfc", e);
+          toast("スキャンを開始できませんでした");
+        }
+      }
+
+      /* =====================================================================
+         デバッグパネル
+      ===================================================================== */
+      function initDebug() {
+        var params = new URLSearchParams(location.search);
+        if (params.get("debug") !== "1") return;
+        var p = $("debug");
+        if (!p) return;
+        p.hidden = false;
+        on($("dbgScan"), "click", function () {
+          var inp = $("dbgId");
+          var id = (inp && inp.value || "").trim().toLowerCase();
+          if (/^\d{1,2}$/.test(id)) id = "w" + id.padStart(2, "0");
+          handleGet(id);
+        });
+        on($("dbgRandom"), "click", function () {
+          var rest = works.filter(function (w) { return !collection[w.id]; });
+          pickRandom(rest, 5).forEach(function (w) { collection[w.id] = Date.now(); });
+          saveCollection();
+          Object.keys(cells).forEach(paintCell);
+          updateProgress();
+          refreshHero();
+          toast("5作品を追加しました");
+        });
+        on($("dbgClear"), "click", function () {
+          collection = {};
+          saveCollection();
+          exitLeaflet();
+          try { localStorage.removeItem(LS_SEED); } catch (e) { }
+          Object.keys(cells).forEach(paintCell);
+          updateProgress();
+          refreshHero();
+          toast("すべて消去しました");
+        });
+      }
+
+      /* =====================================================================
+         Service Worker
+      ===================================================================== */
+      function initSW() {
+        if (!("serviceWorker" in navigator)) return;
+        var host = location.hostname;
+        if (host === "localhost" || host === "127.0.0.1" || host === "" || host.endsWith(".local")) return;
+        if (location.protocol !== "https:") return;
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("visit-sw.js").catch(function (e) { console.warn("sw", e); });
+        });
+      }
+
+      /* =====================================================================
+         初期化
+      ===================================================================== */
+      var heroInView = true;
+
+      function initHero() {
+        hero.cv = $("heroCv");
+        if (!hero.cv) return;
+        buildHeroSpec();
+        sizeHero();
+        var ro = null;
+        if ("ResizeObserver" in window) {
+          ro = new ResizeObserver(function () { sizeHero(); });
+          ro.observe(hero.cv);
+        }
+        on(window, "resize", function () { sizeHero(); updateBarSpace(); }, { passive: true });
+        on(window, "orientationchange", function () { setTimeout(sizeHero, 250); }, { passive: true });
+        on(document, "visibilitychange", function () {
+          if (document.hidden) stopHero(); else startHero();
+        });
+        var heroEl = $("hero");
+        if (heroEl && "IntersectionObserver" in window) {
+          var io = new IntersectionObserver(function (ents) {
+            ents.forEach(function (e) {
+              hero.visible = e.isIntersecting;
+              heroInView = e.intersectionRatio > 0.55;
+              var btn = $("leafletBtn");
+              if (btn) btn.classList.toggle("away", leaflet.active || view !== "home" || heroInView);
+              if (hero.visible) startHero(); else stopHero();
+            });
+          }, { threshold: [0, 0.55, 1] });
+          io.observe(heroEl);
+        }
+        startHero();
+      }
+
+      function initButtons() {
+        on($("leafletBtn"), "click", function () { location.hash = "leaflet"; });
+        on($("slotQuit"), "click", function () { exitLeaflet(); toast("リーフレットづくりをやめました"); });
+        on($("slotNext"), "click", function () {
+          if (leaflet.slots.filter(Boolean).length < 3) return;
+          leaflet.step = 2;
+          saveLeaflet();
+          syncLeafletUI();
+          var sheet = $("sheet");
+          if (sheet) sheet.scrollTop = 0;
+        });
+        on($("sheetBack"), "click", function () {
+          if (leaflet.step === 3 && sheetSub === "form") { leaflet.step = 2; saveLeaflet(); syncLeafletUI(); }
+          else if (leaflet.step === 3 && sheetSub === "error") { sheetSub = "form"; renderSheetStep(); }
+          else if (leaflet.step === 2) { leaflet.step = 1; saveLeaflet(); syncLeafletUI(); }
+        });
+        on($("surveySubmit"), "click", submitJob);
+        on($("retryBtn"), "click", submitJob);
+        on($("errQuit"), "click", function () { exitLeaflet(); });
+        on($("doneBack"), "click", function () { exitLeaflet(); toast("ありがとうございました"); });
+        on($("nfcBtn"), "click", startNfc);
+      }
+
+      async function init() {
+        initSW();
+        try {
+          var r = await Promise.all([
+            fetch("data/works.json").then(function (x) { return x.json(); }),
+            fetch("data/sections.json").then(function (x) { return x.json(); })
+          ]);
+          works = Array.isArray(r[0]) ? r[0] : [];
+          sections = Array.isArray(r[1]) ? r[1] : [];
+        } catch (e) {
+          console.warn("data", e);
+          toast("作品データを読み込めませんでした");
+        }
+        works.forEach(function (w) { byId[w.id] = w; });
+        // 存在しない作品IDが localStorage に残っていたら掃除
+        Object.keys(collection).forEach(function (id) { if (!byId[id]) delete collection[id]; });
+        leaflet.slots = leaflet.slots.filter(function (id) { return byId[id]; });
+        // 復元したスロットと spec がずれていたら作品えらびからやり直し
+        if (leaflet.active && leaflet.step >= 2) {
+          var specIds = (leaflet.spec && leaflet.spec.blobs || []).map(function (b) { return b.imgId; });
+          if (leaflet.slots.length !== 3 || (leaflet.step === 3 && specIds.join(",") !== leaflet.slots.join(","))) {
+            leaflet.step = 1;
+            leaflet.spec = null;
+            saveLeaflet();
+          }
+        }
+
+        buildCollection();
+        buildEmotions();
+        buildSurvey();
+        initDetailGestures();
+        initButtons();
+        initHero();
+        initDebug();
+
+        if ("NDEFReader" in window) {
+          var nb = $("nfcBtn");
+          if (nb) nb.hidden = false;
+        }
+
+        on(window, "hashchange", route);
+        route();
+        syncLeafletUI();
+
+        // リロード復元: アンケートまで進んでいたら 300ppi レンダを再開しておく
+        if (leaflet.active && leaflet.step === 3 && leaflet.spec && leaflet.slots.length === 3) {
+          startPrintRender();
+        }
+      }
+
+      if (document.readyState === "loading") on(document, "DOMContentLoaded", init);
+      else init();
+    })();
+  </script>
+</body>
+
+</html>

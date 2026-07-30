@@ -16,41 +16,25 @@
 
 ---
 
-## 稼働ずみ / 未設定
+## 稼働状況（2026-07-31 時点・本番で疎通確認ずみ）
 
-- ✅ 全ページ配信、作品コレクション（NFC タグを読む → 集まる）、`/poster.png`、`GET /api/latest`
-- ❌ **リーフレットの送信・印刷・スクリーンへの反映** … Vercel Blob 未接続のため `POST /api/print-jobs` が 503
+- ✅ 全ページ配信、作品コレクション（NFC タグ → 集まる）、`/poster.png`
+- ✅ Vercel Blob 接続ずみ（**private ストア**）。`POST /api/print-jobs` → 200
+- ✅ `GET /api/latest`（survey を含まないことを確認）、`GET /api/my/<token>`、未知トークンは 404
+- ✅ `PRINT_AGENT_TOKEN` 設定ずみ（トークンなしの `GET /api/print-jobs` は 401）
+- ✅ 印刷エージェントが本番からジョブを取得 → A4 両面 PDF 生成まで成功
 
-`POST` は原因が分かるメッセージを返すので、設定できたかは下記コマンドで確認できる。
+Blob は private なので、blob の URL に直接アクセスしても読めない。読み出しは全て
+サーバー側の `get()` を通り、front.jpg も `GET /api/print-jobs?front=<id>`（トークン必須）
+経由でしか取れない。アンケートの自由記述が公開URLに乗ることはない。
 
-```bash
-curl -s -X POST https://adl-exhibition-2026.vercel.app/api/print-jobs -H 'Content-Type: application/json' -d '{"v":1}'
-```
-
-`{"error":"invalid v"}` 等のバリデーションエラーが返れば Blob は接続済み。
-`BLOB_READ_WRITE_TOKEN が未設定です…` が返るならまだ未接続。
+> ⚠️ **疎通確認用のテストジョブ `1785453802968-5577` が本番に1件残っている。**
+> 会場で初めてエージェントを起動するときは `--since 1785453802968-5577` を付けること
+> （付けないと、このテストジョブが1枚印刷される）。
 
 ---
 
-## 1. Vercel Blob を接続する（必須・ダッシュボード作業）
-
-1. Vercel ダッシュボード → プロジェクト `adl-exhibition-2026` → **Storage** タブ
-2. **Create Database** → **Blob** を選択 → 名前は任意（例 `adl-exhibition-blob`）
-3. 作成後、そのプロジェクトに **Connect**（`BLOB_READ_WRITE_TOKEN` が自動で環境変数に入る）
-4. **Deployments** タブ → 最新デプロイの ⋯ → **Redeploy**（環境変数は再デプロイで反映される）
-
-## 2. 印刷エージェント用のトークンを設定する（必須）
-
-1. 適当な長い文字列を作る（例: `openssl rand -hex 24`）
-2. ダッシュボード → **Settings** → **Environment Variables** に追加
-   - Name: `PRINT_AGENT_TOKEN` / Value: 生成した文字列 / Environment: Production
-3. Redeploy
-4. 同じ値を印刷 PC の環境変数にも設定する（下記）
-
-> 未設定でも動くが、その場合 `GET /api/print-jobs`（ジョブ一覧＝アンケート回答を含む）が
-> 誰でも取得できてしまう。**本番では必ず設定すること。**
-
-## 3. 印刷 PC（Mac）のセットアップ
+## 1. 印刷 PC（Mac）のセットアップ
 
 ```bash
 git clone https://github.com/rintaro-chujo/adl-2026-prototype.git
@@ -58,6 +42,14 @@ cd adl-2026-prototype
 npm install
 lpstat -p                      # プリンター名を確認
 ```
+
+初回だけ、テストジョブを飛ばすために `--since` を付ける:
+
+```bash
+API_BASE=https://adl-exhibition-2026.vercel.app PRINT_AGENT_TOKEN=<設定した値> PRINTER=<プリンター名> npm run agent -- --since 1785453802968-5577
+```
+
+2回目以降は `print-agent/state.json` に処理ずみ ID が残るので `--since` は不要:
 
 ```bash
 API_BASE=https://adl-exhibition-2026.vercel.app PRINT_AGENT_TOKEN=<設定した値> PRINTER=<プリンター名> npm run agent
@@ -67,12 +59,12 @@ API_BASE=https://adl-exhibition-2026.vercel.app PRINT_AGENT_TOKEN=<設定した�
 - 詳しくは [print-agent/README.md](../print-agent/README.md)
 - アンケート回答は `print-agent/survey.csv` に追記される（Blob 側にも残る）
 
-## 4. NFC タグ
+## 2. NFC タグ
 
 [NFC_URLS.md](NFC_URLS.md) の一覧どおりに書き込む。**ドメインが変わると全部書き直しになる**ので、
 書き込み前にこのドメインで確定しているか確認すること。
 
-## 5. スクリーン（プロジェクター）
+## 3. スクリーン（プロジェクター）
 
 `https://adl-exhibition-2026.vercel.app/` を開いてダブルクリックで全画面。
 PC のスリープと画面オフを無効にしておく。誰かがリーフレットを作ると 5 秒以内に反映される。

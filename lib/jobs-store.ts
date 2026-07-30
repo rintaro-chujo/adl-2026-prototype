@@ -7,9 +7,25 @@
 // 注意: トークンの有無はリクエスト処理時に都度 process.env を見て判定する（遅延評価）。
 // モジュールのトップレベルで throw させると next build 時に落ちるため避ける。
 
-import { put, list } from "@vercel/blob";
+import { put, list, get } from "@vercel/blob";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+
+// ストアは private。blob の URL は公開されないので、読み出しは必ず get()（トークン認証）を通す。
+// front.jpg も print-agent へ直リンクせず /api/print-jobs?front= 経由で配る。
+const ACCESS = "private" as const;
+
+async function readBlobText(pathname: string): Promise<string | null> {
+  const res = await get(pathname, { access: ACCESS });
+  if (!res || res.statusCode !== 200) return null;
+  return new Response(res.stream).text();
+}
+
+async function readBlobBuffer(pathname: string): Promise<Buffer | null> {
+  const res = await get(pathname, { access: ACCESS });
+  if (!res || res.statusCode !== 200) return null;
+  return Buffer.from(await new Response(res.stream).arrayBuffer());
+}
 
 export type Survey = {
   visit: string;
@@ -126,25 +142,25 @@ export async function saveJob(input: JobInput): Promise<{ id: string }> {
   if (useBlob()) {
     await Promise.all([
       put(`jobs/${id}/meta.json`, JSON.stringify(meta), {
-        access: "public",
+        access: ACCESS,
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: "application/json",
       }),
       put(`jobs/${id}/front.jpg`, frontBuf, {
-        access: "public",
+        access: ACCESS,
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: "image/jpeg",
       }),
       put(`latest.json`, JSON.stringify(latest), {
-        access: "public",
+        access: ACCESS,
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: "application/json",
       }),
       put(`tokens/${input.token}.json`, JSON.stringify(my), {
-        access: "public",
+        access: ACCESS,
         addRandomSuffix: false,
         allowOverwrite: true,
         contentType: "application/json",
@@ -169,9 +185,8 @@ export async function saveJob(input: JobInput): Promise<{ id: string }> {
 export async function getMyPublic(token: string): Promise<MyPublic | null> {
   if (useBlob()) {
     try {
-      const { blobs } = await list({ prefix: `tokens/${token}.json`, limit: 1 });
-      if (blobs.length === 0) return null;
-      return (await fetch(blobs[0].url).then((r) => r.json())) as MyPublic;
+      const raw = await readBlobText(`tokens/${token}.json`);
+      return raw ? (JSON.parse(raw) as MyPublic) : null;
     } catch (e) {
       console.error("[jobs-store] token 取得失敗:", e);
       return null;
@@ -189,25 +204,21 @@ export async function getMyPublic(token: string): Promise<MyPublic | null> {
 export async function listJobsAfter(afterId: string | null): Promise<JobListItem[]> {
   if (useBlob()) {
     const { blobs } = await list({ prefix: "jobs/" });
-    const frontUrlById = new Map<string, string>();
-    for (const b of blobs) {
-      if (b.pathname.endsWith("/front.jpg")) {
-        frontUrlById.set(b.pathname.split("/")[1], b.url);
-      }
-    }
-    const metaRefs = blobs
+    const ids = blobs
       .filter((b) => b.pathname.endsWith("/meta.json"))
-      .map((b) => ({ id: b.pathname.split("/")[1], url: b.url }))
-      .filter((x) => !afterId || x.id > afterId)
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      .map((b) => b.pathname.split("/")[1])
+      .filter((id) => !afterId || id > afterId)
+      .sort();
 
     const out: JobListItem[] = [];
-    for (const ref of metaRefs) {
+    for (const id of ids) {
       try {
-        const meta = (await fetch(ref.url).then((r) => r.json())) as JobMeta;
-        out.push({ id: ref.id, meta, frontUrl: frontUrlById.get(ref.id) ?? null });
+        const raw = await readBlobText(`jobs/${id}/meta.json`);
+        if (!raw) continue;
+        // front.jpg は private なので直リンクは返さない（route が ?front= に差し替える）
+        out.push({ id, meta: JSON.parse(raw) as JobMeta, frontUrl: null });
       } catch (e) {
-        console.error(`[jobs-store] meta.json 取得失敗 id=${ref.id}:`, e);
+        console.error(`[jobs-store] meta.json 取得失敗 id=${id}:`, e);
       }
     }
     return out;
@@ -236,9 +247,17 @@ export async function listJobsAfter(afterId: string | null): Promise<JobListItem
   return out;
 }
 
-// ローカル開発フォールバック時、front.jpg の実体を返す（Blob 利用時は frontUrl を直接使うので不要）
-export async function readLocalFront(id: string): Promise<Buffer | null> {
-  if (useBlob()) return null;
+// front.jpg の実体を返す。private ストアなので Blob 運用時もここを通して配る
+// （API 側で x-agent-token を検証してから呼ぶこと）。
+export async function readFront(id: string): Promise<Buffer | null> {
+  if (useBlob()) {
+    try {
+      return await readBlobBuffer(`jobs/${id}/front.jpg`);
+    } catch (e) {
+      console.error(`[jobs-store] front.jpg 取得失敗 id=${id}:`, e);
+      return null;
+    }
+  }
   try {
     return await fs.readFile(path.join(LOCAL_DIR, "jobs", id, "front.jpg"));
   } catch {
@@ -250,9 +269,8 @@ export async function readLocalFront(id: string): Promise<Buffer | null> {
 export async function getLatestPublic(): Promise<LatestPublic | null> {
   if (useBlob()) {
     try {
-      const { blobs } = await list({ prefix: "latest.json", limit: 1 });
-      if (blobs.length === 0) return null;
-      return (await fetch(blobs[0].url).then((r) => r.json())) as LatestPublic;
+      const raw = await readBlobText("latest.json");
+      return raw ? (JSON.parse(raw) as LatestPublic) : null;
     } catch (e) {
       console.error("[jobs-store] latest.json 取得失敗:", e);
       return null;

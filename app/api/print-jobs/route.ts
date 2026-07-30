@@ -3,8 +3,8 @@
 // POST: 公開。バリデーションして保存し { id } を返す。1 IP あたり 5 秒 1 回のレート制限。
 // GET : print-agent 専用。x-agent-token が PRINT_AGENT_TOKEN と一致必須（未設定時は開発用に許可）。
 //       ?after=<id> より新しいジョブを [{id, meta, frontUrl}] で返す。
-//       ローカル開発フォールバック（Blob 未設定）時は ?front=<id> で front.jpg 本体を返す。
-import { saveJob, listJobsAfter, readLocalFront, StorageNotConfiguredError, type JobInput, type Survey } from "../../../lib/jobs-store";
+//       front.jpg は private Blob なので直リンクを返さず ?front=<id> で本体を返す（要トークン）。
+import { saveJob, listJobsAfter, readFront, StorageNotConfiguredError, type JobInput, type Survey } from "../../../lib/jobs-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -145,10 +145,10 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
 
-  // ローカル開発フォールバック用: front.jpg 本体の取得
+  // front.jpg 本体の取得（Blob / ローカルどちらも通る）
   const frontId = url.searchParams.get("front");
   if (frontId) {
-    const buf = await readLocalFront(frontId);
+    const buf = await readFront(frontId);
     if (!buf) return new Response("not found", { status: 404 });
     return new Response(new Uint8Array(buf), { headers: { "Content-Type": "image/jpeg" } });
   }
@@ -156,7 +156,7 @@ export async function GET(req: Request) {
   try {
     const afterId = url.searchParams.get("after");
     const jobs = await listJobsAfter(afterId);
-    // ローカル開発フォールバックでは frontUrl が null なので、この API 自身の ?front= に差し替える
+    // Blob は private なので直リンクは返さない。この API 自身の ?front=（トークン必須）に差し替える
     const out = jobs.map((j) => ({
       ...j,
       frontUrl: j.frontUrl ?? `${url.origin}/api/print-jobs?front=${j.id}`,

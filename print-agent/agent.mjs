@@ -12,6 +12,7 @@
 //   node print-agent/agent.mjs --since <id>           # このid以降から再開（1回限りの上書き）
 //   node print-agent/agent.mjs --retry-failed          # 失敗ジョブだけ再試行
 //   node print-agent/agent.mjs --front-only            # 表面だけ1ページで印刷（元PDF不要・緊急用）
+//   node print-agent/agent.mjs --no-flip               # 180度回転をやめる（既定は回転あり）
 //   node print-agent/agent.mjs --api http://host:3010  # API_BASE の代わりに指定
 //
 // 接続先: --api > 環境変数 API_BASE > 既定 https://adl-exhibition-2026.vercel.app
@@ -27,6 +28,7 @@ import { spawnSync } from "node:child_process";
 // pdf-lib は起動時に読み込む（入っていなければ自動で npm install する）。
 // 静的 import にすると未インストール時にエラーだけ出て落ちてしまうため、あえて遅延読み込み。
 let PDFDocument = null;
+let degrees = null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -55,6 +57,7 @@ function parseArgs(argv) {
     once: false,
     retryFailed: false,
     frontOnly: false,
+    noFlip: false,
     since: null,
     api: null,
     token: null,
@@ -65,6 +68,7 @@ function parseArgs(argv) {
     else if (a === "--once") args.once = true;
     else if (a === "--retry-failed") args.retryFailed = true;
     else if (a === "--front-only") args.frontOnly = true;
+    else if (a === "--no-flip") args.noFlip = true;
     else if (a === "--since") args.since = argv[++i] ?? null;
     else if (a === "--api") args.api = argv[++i] ?? null;
     else if (a === "--token") args.token = argv[++i] ?? null;
@@ -144,8 +148,13 @@ function loadWorksById() {
 async function buildPdf(job, frontBuf) {
   const pdfDoc = await PDFDocument.create();
 
+  // 用紙が「下から」出てくる向きに合わせて、ページ全体を 180 度回して出力する。
+  // /Rotate を立てるだけなので、以下の描画座標はそのままでよい（--no-flip で無効化）。
+  const rot = args.noFlip ? null : degrees(180);
+
   // p1 表: front.jpg を全面
   const p1 = pdfDoc.addPage([A4_W, A4_H]);
+  if (rot) p1.setRotation(rot);
   const frontImg = await pdfDoc.embedJpg(frontBuf);
   p1.drawImage(frontImg, { x: 0, y: 0, width: A4_W, height: A4_H });
 
@@ -158,6 +167,7 @@ async function buildPdf(job, frontBuf) {
 
   // p2 裏
   const p2 = pdfDoc.addPage([A4_W, A4_H]);
+  if (rot) p2.setRotation(rot);
 
   // 上半分: お気に入り作品の1ページ目を contain・無トリミング・中央
   const favWork = worksById.get(favId);
@@ -291,7 +301,7 @@ function npmInstall(pkgArgs, cwd) {
 
 async function ensureDeps() {
   try {
-    ({ PDFDocument } = await import("pdf-lib"));
+    ({ PDFDocument, degrees } = await import("pdf-lib"));
     return;
   } catch (e) {
     if (e && e.code !== "ERR_MODULE_NOT_FOUND") throw e;
@@ -309,7 +319,7 @@ async function ensureDeps() {
       `このフォルダ（${cwd}）に書き込めるかを確認してください。`
     );
   }
-  ({ PDFDocument } = await import("pdf-lib"));
+  ({ PDFDocument, degrees } = await import("pdf-lib"));
   console.log("[print-agent] pdf-lib を用意しました");
 }
 

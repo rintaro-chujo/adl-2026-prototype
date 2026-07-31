@@ -11,6 +11,7 @@
 //   node print-agent/agent.mjs --dry-run              # 印刷せず out/ にPDF保存のみ
 //   node print-agent/agent.mjs --since <id>           # このid以降から再開（1回限りの上書き）
 //   node print-agent/agent.mjs --retry-failed          # 失敗ジョブだけ再試行
+//   node print-agent/agent.mjs --front-only            # 表面だけ1ページで印刷（元PDF不要・緊急用）
 //   node print-agent/agent.mjs --api http://host:3010  # API_BASE の代わりに指定
 //
 // env: API_BASE(既定 http://localhost:3000) / PRINT_AGENT_TOKEN / PRINTER(lp -d)
@@ -51,6 +52,7 @@ function parseArgs(argv) {
     dryRun: false,
     once: false,
     retryFailed: false,
+    frontOnly: false,
     since: null,
     api: null,
   };
@@ -59,6 +61,7 @@ function parseArgs(argv) {
     if (a === "--dry-run") args.dryRun = true;
     else if (a === "--once") args.once = true;
     else if (a === "--retry-failed") args.retryFailed = true;
+    else if (a === "--front-only") args.frontOnly = true;
     else if (a === "--since") args.since = argv[++i] ?? null;
     else if (a === "--api") args.api = argv[++i] ?? null;
   }
@@ -128,15 +131,19 @@ function loadWorksById() {
 
 // ---------- PDF合成 ----------
 async function buildPdf(job, frontBuf) {
-  const worksById = await loadWorksById();
-  const [favId, subId1, subId2] = job.meta.workIds;
-
   const pdfDoc = await PDFDocument.create();
 
   // p1 表: front.jpg を全面
   const p1 = pdfDoc.addPage([A4_W, A4_H]);
   const frontImg = await pdfDoc.embedJpg(frontBuf);
   p1.drawImage(frontImg, { x: 0, y: 0, width: A4_W, height: A4_H });
+
+  // --front-only: 元PDFを持たない環境の緊急用。表面だけの1ページで出す
+  // （QRから3作品は見られるが、裏面のポスターは入らない）
+  if (args.frontOnly) return pdfDoc.save();
+
+  const worksById = await loadWorksById();
+  const [favId, subId1, subId2] = job.meta.workIds;
 
   // p2 裏
   const p2 = pdfDoc.addPage([A4_W, A4_H]);
@@ -266,8 +273,8 @@ async function pollOnce(state) {
 // ---------- 起動前チェック ----------
 // 会場のPCで「必要なものが揃っていない」まま動かして気づけない事故を防ぐ。
 // 依存が無ければその場で入れ、それ以外の不足は日本語で理由を出して止める。
-function npmInstall(pkgArgs) {
-  const r = spawnSync("npm", pkgArgs, { cwd: ROOT, stdio: "inherit", encoding: "utf8" });
+function npmInstall(pkgArgs, cwd) {
+  const r = spawnSync("npm", pkgArgs, { cwd, stdio: "inherit", encoding: "utf8" });
   return !r.error && r.status === 0;
 }
 
@@ -278,14 +285,17 @@ async function ensureDeps() {
   } catch (e) {
     if (e && e.code !== "ERR_MODULE_NOT_FOUND") throw e;
   }
-  // ここに来る＝pdf-lib が無い。package.json があれば一括、無ければ pdf-lib だけ入れる。
-  const hasPkgJson = existsSync(path.join(ROOT, "package.json"));
-  console.log(`[print-agent] pdf-lib が見つかりません。${hasPkgJson ? "npm install" : "npm install pdf-lib"} を実行します…`);
-  const ok = npmInstall(hasPkgJson ? ["install"] : ["install", "pdf-lib"]);
-  if (!ok) {
+  // ここに来る＝pdf-lib が無い。リポジトリ内なら一括 install、
+  // 単体ファイル運用（--front-only）なら agent.mjs と同じ場所に pdf-lib だけ入れる
+  // （Node は import 元のフォルダから上へ node_modules を探すのでこれで解決できる）。
+  const inRepo = existsSync(path.join(ROOT, "package.json"));
+  const cwd = inRepo ? ROOT : __dirname;
+  const pkgArgs = inRepo ? ["install"] : ["install", "pdf-lib"];
+  console.log(`[print-agent] pdf-lib が見つかりません。${cwd} で npm ${pkgArgs.join(" ")} を実行します…`);
+  if (!npmInstall(pkgArgs, cwd)) {
     throw new Error(
       "依存パッケージのインストールに失敗しました。ネットにつながっているか、" +
-      `このフォルダ（${ROOT}）に書き込めるかを確認してください。`
+      `このフォルダ（${cwd}）に書き込めるかを確認してください。`
     );
   }
   ({ PDFDocument } = await import("pdf-lib"));
@@ -293,6 +303,7 @@ async function ensureDeps() {
 }
 
 function checkFiles() {
+  if (args.frontOnly) return;   // 表面だけなら元PDFも works.json も要らない
   const missing = [];
   if (!existsSync(WORKS_JSON)) missing.push(path.relative(ROOT, WORKS_JSON));
   if (!existsSync(POSTERS_DIR)) missing.push(path.relative(ROOT, POSTERS_DIR) + "/（作品PDF）");
@@ -301,7 +312,8 @@ function checkFiles() {
       "リポジトリの中で実行してください。見つからないもの: " + missing.join(", ") + "\n" +
       "  リーフレットの裏面は data/posters の元PDFから作るため、agent.mjs 単体では動きません。\n" +
       "  git clone https://github.com/rintaro-chujo/adl-2026-prototype.git\n" +
-      "  cd adl-2026-prototype && npm install"
+      "  cd adl-2026-prototype && npm install\n" +
+      "  ※ どうしても元PDFを用意できないときは --front-only で表面だけ印刷できます"
     );
   }
 }

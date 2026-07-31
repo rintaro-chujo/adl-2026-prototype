@@ -28,6 +28,19 @@ npm install
 > `Cannot find package 'pdf-lib'` や `Could not read package.json` になる。
 > 上のとおり clone したフォルダの中で実行すること。
 
+### 緊急用: 表面だけ印刷する（`--front-only`）
+
+元PDFを用意できない場合に限り、`agent.mjs` 1ファイルだけで表面のみを印刷できる。
+表面は API から受け取った画像を貼るだけなのでローカルのPDFが要らない。
+pdf-lib が無ければ、そのファイルと同じフォルダに自動でインストールされる。
+
+```sh
+API_BASE=https://adl-exhibition-2026.vercel.app PRINT_AGENT_TOKEN=<値> node agent.mjs --front-only
+```
+
+裏面（お気に入り + 2作品のポスター）は入らないが、表面のQRから3作品は見られる。
+**通常は使わないこと。** 本来の2ページ両面で運用する。
+
 ## 2. Vercel の環境変数の値を取得
 
 本番の Vercel プロジェクトから以下を確認する（Vercel Dashboard → Project → Settings →

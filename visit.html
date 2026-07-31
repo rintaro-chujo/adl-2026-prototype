@@ -2741,6 +2741,18 @@
         }
       }
 
+      // ?all=1 … 全作品を最初から見えるようにする（下見・スタッフ確認用）。
+      // 一度開けば保存されるので、以降はパラメータ無しでも全部見える。
+      function unlockAllIfRequested() {
+        var p = new URLSearchParams(location.search);
+        if (p.get("all") !== "1") return;
+        var now = Date.now(), added = 0;
+        works.forEach(function (w, i) {
+          if (!collection[w.id]) { collection[w.id] = now - (works.length - i); added++; }
+        });
+        if (added) saveCollection();
+      }
+
       /* =====================================================================
          デバッグパネル
       ===================================================================== */
@@ -2905,6 +2917,8 @@
             saveLeaflet();
           }
         }
+
+        unlockAllIfRequested();
 
         buildCollection();
         buildEmotions();

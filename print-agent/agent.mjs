@@ -14,10 +14,12 @@
 //   node print-agent/agent.mjs --front-only            # 表面だけ1ページで印刷（元PDF不要・緊急用）
 //   node print-agent/agent.mjs --api http://host:3010  # API_BASE の代わりに指定
 //
-// env: API_BASE(既定 http://localhost:3000) / PRINT_AGENT_TOKEN / PRINTER(lp -d)
+// 接続先: --api > 環境変数 API_BASE > 既定 https://adl-exhibition-2026.vercel.app
+// トークン: --token > 環境変数 PRINT_AGENT_TOKEN > print-agent/token.txt
+// env: PRINTER(lp -d で使うプリンタ名)
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -55,6 +57,7 @@ function parseArgs(argv) {
     frontOnly: false,
     since: null,
     api: null,
+    token: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -64,16 +67,24 @@ function parseArgs(argv) {
     else if (a === "--front-only") args.frontOnly = true;
     else if (a === "--since") args.since = argv[++i] ?? null;
     else if (a === "--api") args.api = argv[++i] ?? null;
+    else if (a === "--token") args.token = argv[++i] ?? null;
   }
   return args;
 }
 
 const args = parseArgs(process.argv.slice(2));
 const API_BASE =
-  args.api || process.env.API_BASE || "https://adl-2026-prototype.vercel.app";
-const TOKEN =
-  process.env.PRINT_AGENT_TOKEN ||
-  "b7d0ea7d39873276233dcac7960ad8a3fbf2b075c61dcc3f";
+  args.api || process.env.API_BASE || "https://adl-exhibition-2026.vercel.app";
+
+// トークンはソースに書かない（このリポジトリは公開されている）。
+// --token / 環境変数 / print-agent/token.txt（gitignore 済み）の順に読む。
+function readTokenFile() {
+  for (const f of [path.join(__dirname, "token.txt"), path.join(ROOT, "print-agent", "token.txt")]) {
+    try { if (existsSync(f)) return readFileSync(f, "utf8").trim(); } catch (e) { /* 読めなければ次 */ }
+  }
+  return "";
+}
+const TOKEN = args.token || process.env.PRINT_AGENT_TOKEN || readTokenFile();
 const PRINTER = process.env.PRINTER || "";
 
 // ---------- state.json ----------
@@ -340,7 +351,10 @@ async function preflight() {
   await ensureDeps();
   checkPrinter();
   if (!TOKEN) {
-    console.warn("[print-agent] 警告: PRINT_AGENT_TOKEN が未設定です（本番では設定してください）");
+    console.warn(
+      "[print-agent] 警告: トークンが未設定です。print-agent/token.txt に書くか、" +
+      "PRINT_AGENT_TOKEN 環境変数か --token で渡してください"
+    );
   }
   // API に到達できるかを先に確かめる（URL の打ち間違いやトークン違いをここで気づけるように）
   let res;
@@ -357,6 +371,13 @@ async function preflight() {
     throw new Error(
       "API の認証に失敗しました（401）。PRINT_AGENT_TOKEN が Vercel 側の設定と一致していません。\n" +
       "  Vercel ダッシュボード → Settings → Environment Variables の値と同じものを指定してください。"
+    );
+  }
+  if (res.status === 404) {
+    throw new Error(
+      `この URL に API がありません（${API_BASE}）。接続先のドメインが違う可能性があります。\n` +
+      "  本番は https://adl-exhibition-2026.vercel.app です（adl-2026-prototype は別プロジェクト）。\n" +
+      "  --api か環境変数 API_BASE で指定できます。"
     );
   }
   if (!res.ok) throw new Error(`API が ${res.status} を返しました（${API_BASE}）`);

@@ -11,3 +11,4 @@ tsconfig.tsbuildinfo
 print-agent/out/
 print-agent/state.json
 print-agent/survey.csv
+print-agent/token.txt

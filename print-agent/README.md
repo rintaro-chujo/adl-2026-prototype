@@ -51,11 +51,19 @@ Environment Variables、または `vercel env pull`）:
 
 取得した値を、プリントPC側の環境変数として設定する（`.zshrc` などに追記、または起動時に指定）。
 
+トークンは**ソースに書かないこと**（このリポジトリは公開されている）。
+`print-agent/token.txt` に書いておけば自動で読む（gitignore 済み）。
+
 ```sh
-export PRINT_AGENT_TOKEN="<vercelから取得した値>"
-export API_BASE="https://<本番ドメイン>"      # 会場LANから直接ローカルAPIを叩けない場合
+echo "<vercelから取得した値>" > print-agent/token.txt
 export PRINTER="<lpstat -p で確認したプリンタ名>"
 ```
+
+接続先は既定で `https://adl-exhibition-2026.vercel.app`。変える場合のみ
+`--api` か `API_BASE` を指定する。
+
+> ⚠️ `adl-2026-prototype.vercel.app` は**別プロジェクト**（API が無い静的サイト）。
+> ここを指すと起動時に「この URL に API がありません」で止まる。
 
 ## 3. テスト印刷（まず dry-run で確認）
 

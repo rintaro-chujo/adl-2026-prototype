@@ -126,17 +126,24 @@
 
   function probeBlur(make) {
     try {
-      const c = make(16, 16);
-      const x = c.getContext("2d", { willReadFrequently: true });
+      const c = make(32, 32);
+      // willReadFrequently は付けない。CPU バックエンドに切り替わる環境では
+      // filter が無効になることがあり、本番の描画キャンバス（GPU 側）と
+      // 判定結果がズレてしまうため。
+      const x = c.getContext("2d");
       if (!x || !("filter" in x)) return false;
-      x.clearRect(0, 0, 16, 16);
-      x.filter = "blur(3px)";
+      x.clearRect(0, 0, 32, 32);
+      x.filter = "blur(6px)";
       x.fillStyle = "#000";
-      x.fillRect(6, 6, 4, 4);
+      x.fillRect(12, 12, 8, 8);
       x.filter = "none";
       // 矩形の外側にも色が滲んでいれば、ぼかしが効いている
-      return x.getImageData(3, 8, 1, 1).data[3] > 3;
+      return x.getImageData(6, 16, 1, 1).data[3] > 6;
     } catch (e) { return false; }
+  }
+
+  function logKind() {
+    try { console.log(`[LeafletGraphic] blur: canvas=${CANVAS_KIND} native=${NATIVE_BLUR}`); } catch (e) {}
   }
 
   function initCanvasKind() {
@@ -153,6 +160,7 @@
       CANVAS_KIND = typeof document !== "undefined" ? "dom" : "offscreen";
       NATIVE_BLUR = false;                        // 縮小→拡大で代用する
     }
+    logKind();
   }
 
   const mk2 = (w, h) => {
@@ -189,21 +197,40 @@
       dst.restore();
       return;
     }
-    // ctx.filter が使えない環境(古い iOS など)向け: 一度小さく描いてから戻す。
-    // フェザーやリムのような低周波の形なら、これで十分なめらかになる。
+    // ctx.filter が使えない環境(古い iOS など)向け。
+    // 一気に縮小して一気に戻すと補間のブロックが見えるので、半分ずつ縮小して
+    // 倍ずつ戻す（ミップマップと同じ要領）。これで段差のない滑らかなぼけになる。
     const sw = src.width, sh = src.height;
-    const k = Math.max(2, Math.min(48, Math.round(r / 1.4)));
-    const w = Math.max(1, Math.round(sw / k)), h = Math.max(1, Math.round(sh / k));
-    const small = tmpCanvas(w, h);
-    const sx = small.getContext("2d");
-    sx.imageSmoothingEnabled = true;
-    sx.imageSmoothingQuality = "high";
-    sx.drawImage(src, 0, 0, w, h);
+    const k = Math.max(2, Math.min(64, r / 1.1));
+    const tw = Math.max(1, Math.round(sw / k)), th = Math.max(1, Math.round(sh / k));
+
+    let cur = src, cw = sw, ch = sh;
+    while (cw > tw * 2 && ch > th * 2) {
+      cw = Math.max(tw, Math.round(cw / 2));
+      ch = Math.max(th, Math.round(ch / 2));
+      cur = resizeStep(cur, cw, ch);
+    }
+    if (cw !== tw || ch !== th) { cur = resizeStep(cur, tw, th); cw = tw; ch = th; }
+    while (cw * 2 < sw && ch * 2 < sh) {
+      cw = Math.min(sw, cw * 2);
+      ch = Math.min(sh, ch * 2);
+      cur = resizeStep(cur, cw, ch);
+    }
     dst.save();
     dst.imageSmoothingEnabled = true;
     dst.imageSmoothingQuality = "high";
-    dst.drawImage(small, dx, dy, sw, sh);
+    dst.drawImage(cur, dx, dy, sw, sh);
     dst.restore();
+  }
+
+  function resizeStep(src, w, h) {
+    const c = tmpCanvas(w, h);
+    if (c === src) return src;
+    const x = c.getContext("2d");
+    x.imageSmoothingEnabled = true;
+    x.imageSmoothingQuality = "high";
+    x.drawImage(src, 0, 0, w, h);
+    return c;
   }
 
   const colorLum = hex => {

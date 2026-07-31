@@ -103,20 +103,108 @@
   function getScratch(key, S) {
     let set = scratch.get(key);
     if (!set || set.size !== S) {
-      set = { size: S, mask: mk(S), maskF: mk(S), band: mk(S), layer: mk(S), soft: mk(S), rim: mk(S), rimF: mk(S) };
+      set = {
+        size: S, mask: mk(S), maskF: mk(S), band: mk(S), core: mk(S),
+        layer: mk(S), soft: mk(S), tmp: mk(S), rim: mk(S), rimF: mk(S), halo: mk(S),
+      };
       scratch.set(key, set);
     }
-    for (const k of ["mask", "maskF", "band", "layer", "soft", "rim", "rimF"]) {
+    for (const k of ["mask", "maskF", "band", "core", "layer", "soft", "tmp", "rim", "rimF", "halo"]) {
       const c = set[k].getContext("2d");
       c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, S, S); c.restore();
     }
     return set;
   }
-  const mk = S => {
-    const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(S, S) : document.createElement("canvas");
-    c.width = S; c.height = S;
-    return c;
+  // ---- キャンバス種別と「ぼかしが実際に効くか」の判定 ----
+  // iOS Safari は OffscreenCanvas の 2D context で ctx.filter を黙って無視する。
+  // 気づかないと「ぼけないポスター」が刷られてしまうので、起動時に実測して選ぶ。
+  let CANVAS_KIND = null;   // "offscreen" | "dom"
+  let NATIVE_BLUR = false;  // ctx.filter = blur() が本当に効くか
+
+  const newOffscreen = (w, h) => new OffscreenCanvas(w, h);
+  const newDom = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+
+  function probeBlur(make) {
+    try {
+      const c = make(16, 16);
+      const x = c.getContext("2d", { willReadFrequently: true });
+      if (!x || !("filter" in x)) return false;
+      x.clearRect(0, 0, 16, 16);
+      x.filter = "blur(3px)";
+      x.fillStyle = "#000";
+      x.fillRect(6, 6, 4, 4);
+      x.filter = "none";
+      // 矩形の外側にも色が滲んでいれば、ぼかしが効いている
+      return x.getImageData(3, 8, 1, 1).data[3] > 3;
+    } catch (e) { return false; }
+  }
+
+  function initCanvasKind() {
+    if (CANVAS_KIND) return;
+    // 検証・切り分け用の強制指定（?blur=native / ?blur=fallback 相当）
+    if (typeof window !== "undefined" && window.__LG_BLUR_MODE === "fallback") {
+      CANVAS_KIND = "dom"; NATIVE_BLUR = false; return;
+    }
+    if (typeof OffscreenCanvas !== "undefined" && probeBlur(newOffscreen)) {
+      CANVAS_KIND = "offscreen"; NATIVE_BLUR = true;
+    } else if (typeof document !== "undefined" && probeBlur(newDom)) {
+      CANVAS_KIND = "dom"; NATIVE_BLUR = true;   // Safari は通常のキャンバスなら効く
+    } else {
+      CANVAS_KIND = typeof document !== "undefined" ? "dom" : "offscreen";
+      NATIVE_BLUR = false;                        // 縮小→拡大で代用する
+    }
+  }
+
+  const mk2 = (w, h) => {
+    initCanvasKind();
+    return CANVAS_KIND === "offscreen" ? newOffscreen(w, h) : newDom(w, h);
   };
+  const mk = S => mk2(S, S);
+
+  // 縮小→拡大による近似ぼかし用の作業キャンバス(サイズごとに使い回す)
+  const tmpCache = new Map();
+  function tmpCanvas(w, h) {
+    const key = w + "x" + h;
+    let c = tmpCache.get(key);
+    if (!c) {
+      if (tmpCache.size > 24) tmpCache.clear();
+      c = mk2(w, h);
+      tmpCache.set(key, c);
+    }
+    const x = c.getContext("2d");
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.clearRect(0, 0, w, h);
+    return c;
+  }
+
+  // src を半径 r でぼかして dst の (dx,dy) に描く。
+  // dst 側の globalAlpha / globalCompositeOperation はそのまま活きる。
+  function blurInto(dst, src, r, dx, dy) {
+    dx = dx || 0; dy = dy || 0;
+    if (!(r > 0.2)) { dst.drawImage(src, dx, dy); return; }
+    if (NATIVE_BLUR) {
+      dst.save();
+      dst.filter = `blur(${r}px)`;
+      dst.drawImage(src, dx, dy);
+      dst.restore();
+      return;
+    }
+    // ctx.filter が使えない環境(古い iOS など)向け: 一度小さく描いてから戻す。
+    // フェザーやリムのような低周波の形なら、これで十分なめらかになる。
+    const sw = src.width, sh = src.height;
+    const k = Math.max(2, Math.min(48, Math.round(r / 1.4)));
+    const w = Math.max(1, Math.round(sw / k)), h = Math.max(1, Math.round(sh / k));
+    const small = tmpCanvas(w, h);
+    const sx = small.getContext("2d");
+    sx.imageSmoothingEnabled = true;
+    sx.imageSmoothingQuality = "high";
+    sx.drawImage(src, 0, 0, w, h);
+    dst.save();
+    dst.imageSmoothingEnabled = true;
+    dst.imageSmoothingQuality = "high";
+    dst.drawImage(small, dx, dy, sw, sh);
+    dst.restore();
+  }
 
   const colorLum = hex => {
     const n = parseInt(hex.slice(1), 16);
@@ -146,19 +234,16 @@
       m.fillStyle = "#fff";
       tracePath(m, c0, c0, R, blob.harm, t);
       m.fill();
-      const f = sc.maskF.getContext("2d");
-      f.filter = `blur(${R * style.featherR}px)`;
-      f.drawImage(sc.mask, 0, 0);
-      f.filter = "none";
+      blurInto(sc.maskF.getContext("2d"), sc.mask, R * style.featherR);
       // band = maskF から「中心域(縮小形をぼかしたもの)」をくり抜いた輪っか
+      const core = sc.core.getContext("2d");
+      core.fillStyle = "#fff";
+      tracePath(core, c0, c0, R * style.coreR, blob.harm, t);
+      core.fill();
       const b = sc.band.getContext("2d");
       b.drawImage(sc.maskF, 0, 0);
       b.globalCompositeOperation = "destination-out";
-      b.filter = `blur(${R * style.coreBlurR}px)`;
-      b.fillStyle = "#fff";
-      tracePath(b, c0, c0, R * style.coreR, blob.harm, t);
-      b.fill();
-      b.filter = "none";
+      blurInto(b, sc.core, R * style.coreBlurR);
       b.globalCompositeOperation = "source-over";
     }
 
@@ -178,18 +263,18 @@
       const [fx, fy] = img.__focus || [0.5, 0.5];
       const dx = clamp(c0 - dw * fx, c0 + side / 2 - dw, c0 - side / 2);
       const dy = clamp(c0 - dh * fy, c0 + side / 2 - dh, c0 - side / 2);
-      if (blur > 0.2) c.filter = `blur(${blur}px)`;
       c.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
-      c.filter = "none";
     };
     if (img) {
-      drawCover(L, R * style.imgBlurR);
+      // 素のカバー画像を1枚だけ作り、中心用と縁用でぼかし量を変えて使い回す
+      drawCover(sc.tmp.getContext("2d"));
+      blurInto(L, sc.tmp, R * style.imgBlurR);
       L.globalCompositeOperation = "destination-in";
       L.drawImage(sc.maskF, 0, 0);
       L.globalCompositeOperation = "source-over";
       // 縁バンドにだけ強くぼかした画像を重ねる
       const soft = sc.soft.getContext("2d");
-      drawCover(soft, R * style.edgeBlurR);
+      blurInto(soft, sc.tmp, R * style.edgeBlurR);
       soft.globalCompositeOperation = "destination-in";
       soft.drawImage(sc.band, 0, 0);
       soft.globalCompositeOperation = "source-over";
@@ -218,12 +303,13 @@
     L.globalCompositeOperation = "source-over";
 
     // 4) 外側ハロー(選んだ色が図形の外へぼんやり滲む) — 本体より先に敷く
+    const hc = sc.halo.getContext("2d");
+    hc.fillStyle = color;
+    tracePath(hc, c0, c0, R * 1.04, blob.harm, t);
+    hc.fill();
     main.save();
     main.globalAlpha = style.haloAlpha;
-    main.filter = `blur(${R * style.haloBlurR}px)`;
-    main.fillStyle = color;
-    tracePath(main, cx, cy, R * 1.04, blob.harm, t);
-    main.fill();
+    blurInto(main, sc.halo, R * style.haloBlurR, cx - c0, cy - c0);
     main.restore();
 
     // 5) 本体合成
@@ -243,10 +329,7 @@
       r.lineJoin = "round";
       tracePath(r, c0, c0, R, blob.harm, t);
       r.stroke();
-      const rf = sc.rimF.getContext("2d");
-      rf.filter = `blur(${R * style.rimBlurR}px)`;
-      rf.drawImage(sc.rim, 0, 0);
-      rf.filter = "none";
+      blurInto(sc.rimF.getContext("2d"), sc.rim, R * style.rimBlurR);
       main.save();
       main.globalAlpha = rimAlpha;
       main.drawImage(sc.rimF, cx - c0, cy - c0);
@@ -284,5 +367,22 @@
     { key: "shinmiri", label: "しんみり", hex: "#3B3A38" },
   ];
 
-  window.LeafletGraphic = { makeSpec, render, mulberry32, hashSeed, STYLE, ANCHORS, EMOTIONS };
+  // ぼかしの実装が今どちらを使っているか（会場での切り分け用）。
+  // setBlurMode("fallback") で ctx.filter を使わない経路を強制できる。
+  function blurInfo() {
+    initCanvasKind();
+    return { canvas: CANVAS_KIND, nativeBlur: NATIVE_BLUR };
+  }
+  function setBlurMode(mode) {
+    CANVAS_KIND = null;
+    scratch.clear();
+    tmpCache.clear();
+    if (typeof window !== "undefined") window.__LG_BLUR_MODE = mode === "fallback" ? "fallback" : null;
+    return blurInfo();
+  }
+
+  window.LeafletGraphic = {
+    makeSpec, render, mulberry32, hashSeed, STYLE, ANCHORS, EMOTIONS,
+    blurInfo, setBlurMode,
+  };
 })();

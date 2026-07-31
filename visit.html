@@ -288,18 +288,6 @@
       text-align: justify;
     }
 
-    /* 本文の一番上に置くリード。次の段落までは "" の空行が受け持つ */
-    .intro-body p.lead {
-      font-size: clamp(16px, 4.4vw, 19px);
-      font-weight: 500;
-      line-height: 1.9;
-      letter-spacing: .05em;
-      text-align: left;
-      margin: 30px 0 0;
-    }
-
-    .intro-body p.lead + p.lead { margin-top: 2px; }
-
     /* body の "" はそのまま1行の空きになる */
     .intro-body .gap { height: 1.6em; }
 
@@ -312,15 +300,6 @@
       text-align: right;
     }
 
-    .intro-closing {
-      margin-top: 34px;
-      padding-top: 22px;
-      border-top: 1px solid var(--line);
-      font-size: 15px;
-      line-height: 2.1;
-      letter-spacing: .05em;
-      text-align: center;
-    }
 
     .intro-close {
       position: fixed;
@@ -1980,25 +1959,24 @@
         en.textContent = s.en || "";
         inner.append(ja, en);
 
-        // body は段落の配列。先頭がリード（本文の一番上）で、
-        // 空文字 "" はそのまま1行の空きになる
+        // body は段落の配列。空文字 "" はそのまま1行の空きになり、
+        // 段落の中の改行（\n）はそのまま改行として出る
         var body = document.createElement("div");
         body.className = "intro-body";
-        var seenText = false;
         (s.body || []).forEach(function (t) {
           if (!String(t).trim()) {
             var sp = document.createElement("div");
             sp.className = "gap";
             body.appendChild(sp);
-            seenText = true;
             return;
           }
           var p = document.createElement("p");
-          if (!seenText) p.className = "lead";   // 空行が来るまではリード
-          p.textContent = t;
+          String(t).split("\n").forEach(function (line, i) {
+            if (i) p.appendChild(document.createElement("br"));
+            p.appendChild(document.createTextNode(line));
+          });
           body.appendChild(p);
         });
-        // 空行より前をリードとみなす（はじめに は和文＋英文の2行）
         inner.appendChild(body);
 
         if (s.sign && s.sign.length) {
@@ -2009,15 +1987,6 @@
             sign.appendChild(document.createTextNode(t));
           });
           inner.appendChild(sign);
-        }
-        if (s.closing && s.closing.length) {
-          var cl = document.createElement("p");
-          cl.className = "intro-closing";
-          s.closing.forEach(function (t, i) {
-            if (i) cl.appendChild(document.createElement("br"));
-            cl.appendChild(document.createTextNode(t));
-          });
-          inner.appendChild(cl);
         }
 
         el.append(close, inner);

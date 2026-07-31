@@ -28,7 +28,8 @@ import { spawnSync } from "node:child_process";
 // pdf-lib は起動時に読み込む（入っていなければ自動で npm install する）。
 // 静的 import にすると未インストール時にエラーだけ出て落ちてしまうため、あえて遅延読み込み。
 let PDFDocument = null;
-let degrees = null;
+let pushGraphicsState = null;
+let concatTransformationMatrix = null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -148,13 +149,8 @@ function loadWorksById() {
 async function buildPdf(job, frontBuf) {
   const pdfDoc = await PDFDocument.create();
 
-  // 用紙が「下から」出てくる向きに合わせて、ページ全体を 180 度回して出力する。
-  // /Rotate を立てるだけなので、以下の描画座標はそのままでよい（--no-flip で無効化）。
-  const rot = args.noFlip ? null : degrees(180);
-
   // p1 表: front.jpg を全面
-  const p1 = pdfDoc.addPage([A4_W, A4_H]);
-  if (rot) p1.setRotation(rot);
+  const p1 = addPageFlipped(pdfDoc, A4_W, A4_H);
   const frontImg = await pdfDoc.embedJpg(frontBuf);
   p1.drawImage(frontImg, { x: 0, y: 0, width: A4_W, height: A4_H });
 
@@ -166,8 +162,7 @@ async function buildPdf(job, frontBuf) {
   const [favId, subId1, subId2] = job.meta.workIds;
 
   // p2 裏
-  const p2 = pdfDoc.addPage([A4_W, A4_H]);
-  if (rot) p2.setRotation(rot);
+  const p2 = addPageFlipped(pdfDoc, A4_W, A4_H);
 
   // 上半分: お気に入り作品の1ページ目を contain・無トリミング・中央
   const favWork = worksById.get(favId);
@@ -205,6 +200,18 @@ async function buildPdf(job, frontBuf) {
   }
 
   return pdfDoc.save();
+}
+
+// 用紙が「下から」出てくる向きに合わせて上下を入れ替える。
+// /Rotate は印刷経路によっては無視されるので、ページの座標系そのものを
+// 180 度回しておく。以降の描画コードは元のままでよい（--no-flip で無効化）。
+function addPageFlipped(doc, w, h) {
+  const page = doc.addPage([w, h]);
+  if (!args.noFlip) {
+    // (x, y) → (w - x, h - y)
+    page.pushOperators(pushGraphicsState(), concatTransformationMatrix(-1, 0, 0, -1, w, h));
+  }
+  return page;
 }
 
 // ---------- API 呼び出し ----------
@@ -301,7 +308,7 @@ function npmInstall(pkgArgs, cwd) {
 
 async function ensureDeps() {
   try {
-    ({ PDFDocument, degrees } = await import("pdf-lib"));
+    ({ PDFDocument, pushGraphicsState, concatTransformationMatrix } = await import("pdf-lib"));
     return;
   } catch (e) {
     if (e && e.code !== "ERR_MODULE_NOT_FOUND") throw e;
@@ -319,7 +326,7 @@ async function ensureDeps() {
       `このフォルダ（${cwd}）に書き込めるかを確認してください。`
     );
   }
-  ({ PDFDocument, degrees } = await import("pdf-lib"));
+  ({ PDFDocument, pushGraphicsState, concatTransformationMatrix } = await import("pdf-lib"));
   console.log("[print-agent] pdf-lib を用意しました");
 }
 

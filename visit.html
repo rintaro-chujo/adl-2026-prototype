@@ -541,6 +541,137 @@
     }
 
     /* ============ スロットバー(リーフレット手順1) ============ */
+    /* ============ 手順1（既定）: 全画面のタグ読み取り案内 ============ */
+    #pickfx {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: calc(64px + var(--safe-t)) 22px calc(84px + var(--safe-b));
+      overflow-y: auto;
+      /* 既定で不透明。フェードは「退場」だけに使う（表示中に透明のまま残って
+         操作を塞ぐ事故を作らないため） */
+      opacity: 1;
+      transition: opacity .28s ease;
+    }
+
+    #pickfx.leaving {
+      opacity: 0;
+    }
+
+    .pick-inner {
+      width: 100%;
+      max-width: 460px;
+      text-align: center;
+    }
+
+    /* 電波が広がる図（タグにかざす合図） */
+    .pick-wave {
+      position: relative;
+      width: 92px;
+      height: 92px;
+      margin: 0 auto 22px;
+    }
+
+    .pick-wave i {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--ink);
+    }
+
+    .pick-wave span {
+      position: absolute;
+      inset: 0;
+      border: 1.5px solid var(--ink);
+      border-radius: 50%;
+      opacity: 0;
+      animation: wave 2.6s cubic-bezier(.2, .6, .3, 1) infinite;
+    }
+
+    .pick-wave span:nth-child(2) { animation-delay: .85s; }
+    .pick-wave span:nth-child(3) { animation-delay: 1.7s; }
+
+    @keyframes wave {
+      0%   { transform: scale(.16); opacity: 0; }
+      18%  { opacity: .55; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    .pick-h {
+      font-size: clamp(23px, 6.4vw, 31px);
+      font-weight: 500;
+      line-height: 1.85;
+      letter-spacing: .08em;
+      margin: 0 0 18px;
+    }
+
+    .pick-sub {
+      font-size: 14px;
+      line-height: 2;
+      letter-spacing: .06em;
+      color: var(--sub);
+      margin: 0 0 30px;
+    }
+
+    #pickfx .slots {
+      max-width: 340px;
+      margin: 0 auto;
+      gap: 12px;
+    }
+
+    .pick-count {
+      font-family: var(--en);
+      font-size: 19px;
+      letter-spacing: .2em;
+      color: var(--sub);
+      margin: 18px 0 0;
+    }
+
+    .pick-hint {
+      font-size: 12.5px;
+      line-height: 1.9;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin: 26px 0 0;
+    }
+
+    #pickfx .primary {
+      margin-top: 26px;
+      width: 100%;
+    }
+
+    .pick-quit,
+    .pick-manual {
+      position: fixed;
+      z-index: 56;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      letter-spacing: .06em;
+      color: var(--sub);
+      padding: 8px 4px;
+    }
+
+    .pick-quit {
+      top: calc(14px + var(--safe-t));
+      right: 18px;
+    }
+
+    .pick-manual {
+      left: 18px;
+      bottom: calc(16px + var(--safe-b));
+      border-bottom: 1px solid rgba(44, 42, 38, .3);
+      padding: 8px 2px;
+    }
+
     #slotbar {
       position: fixed;
       left: 0;
@@ -1182,7 +1313,23 @@
   <button id="leafletBtn" class="away">気になった作品でリーフレットをつくる</button>
   <button id="nfcBtn" hidden>タグをスキャン</button>
 
-  <!-- リーフレット手順1: 作品えらび -->
+  <!-- リーフレット手順1（既定）: タグにかざす全画面案内 -->
+  <div id="pickfx" hidden>
+    <button class="pick-quit" id="pickQuit">やめる</button>
+    <div class="pick-inner">
+      <div class="pick-wave" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+      <h2 class="pick-h" id="pickH">気になった作品のタグに<br>スマートフォンをかざしてください</h2>
+      <p class="pick-sub">3つえらぶと、あなただけのリーフレットになります</p>
+      <div class="slots" id="pickSlots"></div>
+      <p class="pick-count"><span id="pickCount">0</span> / 3</p>
+      <button class="primary" id="pickNfc" hidden>スキャンをはじめる</button>
+      <button class="primary" id="pickNext" hidden>つぎへ</button>
+      <p class="pick-hint" id="pickHint"></p>
+    </div>
+    <button class="pick-manual" id="pickManual">作品を読めない場合</button>
+  </div>
+
+  <!-- リーフレット手順1（手動）: コレクションから選ぶ -->
   <div id="slotbar" hidden>
     <div class="bar-head">
       <span class="ttl">3つの作品をえらぶ</span>
@@ -1326,6 +1473,14 @@
         });
       };
       var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+      // 表示直後にクラスを付けてフェードさせる。rAF は画面が更新されない状況だと
+      // 発火しないことがあるので、タイマーでも必ず付ける（透明なまま操作を塞ぐ事故を防ぐ）
+      var fadeIn = function (el, cls) {
+        if (!el) return;
+        var add = function () { el.classList.add(cls); };
+        requestAnimationFrame(function () { requestAnimationFrame(add); });
+        setTimeout(add, 60);
+      };
       var pad2 = function (id) { return String(id || "").replace(/^w/, ""); };
 
       function readJSON(key, fallback) {
@@ -1961,18 +2116,13 @@
         leaflet.active = true;
         leaflet.step = 1;
         if (!Array.isArray(leaflet.slots)) leaflet.slots = [];
+        pickManual = false;   // 既定はタグにかざす案内から
         saveLeaflet();
         syncLeafletUI();
-        // コレクションが見えていなければ先頭へスクロール
-        var col = $("collection");
-        if (col && window.scrollY < col.offsetTop - 40) {
-          try { window.scrollTo({ top: col.offsetTop - 8, behavior: "smooth" }); }
-          catch (e) { window.scrollTo(0, col.offsetTop - 8); }
-        }
-        toast("3つの作品をえらんでください");
       }
       function exitLeaflet() {
         leaflet = normalizeLeaflet(null);
+        pickManual = false;
         saveLeaflet();
         printJob = { promise: null, dataURL: null, key: "" };
         sheetSub = "form";
@@ -1982,26 +2132,49 @@
 
       // 詳細/ゲット演出が出ていないときだけ本体スクロールを戻す
       function releaseLock() {
-        var d = $("detail"), g = $("getfx");
-        if ((d && !d.hidden) || (g && !g.hidden)) return;
+        var d = $("detail"), g = $("getfx"), p = $("pickfx");
+        if ((d && !d.hidden) || (g && !g.hidden) || (p && !p.hidden)) return;
         document.body.classList.remove("lock");
       }
 
       function syncLeafletUI() {
         var bar = $("slotbar"), sheet = $("sheet"), btn = $("leafletBtn");
         var picking = leaflet.active && leaflet.step === 1 && view === "home";
-        document.body.classList.toggle("picking", picking);
-        if (bar) {
-          bar.hidden = !picking;
-          if (picking) requestAnimationFrame(function () { bar.classList.remove("down"); });
+        // 既定はタグにかざす全画面案内。「作品を読めない場合」で手動モード（下部バー）へ
+        var scanning = picking && !pickManual;
+        var manual = picking && pickManual;
+        var fx = $("pickfx");
+        if (fx) {
+          if (scanning) {
+            fx.classList.remove("leaving");
+            fx.hidden = false;
+            document.body.classList.add("lock");
+          } else if (!fx.hidden) {
+            fx.classList.add("leaving");
+            // フェード後に hidden にしてから lock を外す（hidden 前に外そうとしても
+            // releaseLock のガードに引っかかり、手動モードでスクロールできなくなる）
+            setTimeout(function () {
+              if (!(leaflet.active && leaflet.step === 1 && !pickManual)) fx.hidden = true;
+              releaseLock();
+            }, 300);
+          }
         }
+        document.body.classList.toggle("picking", manual);
+        if (bar) {
+          bar.hidden = !manual;
+          if (manual) setTimeout(function () { bar.classList.remove("down"); }, 20);
+        }
+        // 全画面案内の中に専用ボタンがあるので、浮いているスキャンボタンは隠す
+        var fbtn = $("nfcBtn");
+        if (fbtn && scanning) fbtn.hidden = true;
+        else if (fbtn && view === "home" && "NDEFReader" in window) fbtn.hidden = false;
         if (btn) btn.classList.toggle("away", leaflet.active || view !== "home" || heroInView);
         if (sheet) {
           var showSheet = leaflet.active && leaflet.step >= 2 && view === "home";
           if (showSheet) {
             sheet.hidden = false;
             document.body.classList.add("lock");
-            requestAnimationFrame(function () { sheet.classList.add("on"); });
+            fadeIn(sheet, "on");
           } else {
             sheet.classList.remove("on");
             if (!sheet.hidden) setTimeout(function () { if (!(leaflet.active && leaflet.step >= 2)) sheet.hidden = true; }, 300);
@@ -2020,9 +2193,8 @@
         document.documentElement.style.setProperty("--barh", h + "px");
       }
 
-      /* --- 手順1: スロット --- */
-      function renderSlots() {
-        var root = $("slots"), next = $("slotNext");
+      /* --- 手順1: スロット（全画面案内と下部バーの両方に描く） --- */
+      function renderSlotsInto(root) {
         if (!root) return;
         root.textContent = "";
         for (var i = 0; i < 3; i++) {
@@ -2052,7 +2224,42 @@
             root.appendChild(el);
           })(i);
         }
-        if (next) next.disabled = leaflet.slots.filter(Boolean).length < 3;
+      }
+
+      function renderSlots() {
+        var n = leaflet.slots.filter(Boolean).length;
+        renderSlotsInto($("slots"));
+        renderSlotsInto($("pickSlots"));
+
+        var next = $("slotNext");
+        if (next) next.disabled = n < 3;
+
+        // 全画面案内の見出し・カウント・ボタン
+        var cnt = $("pickCount");
+        if (cnt) cnt.textContent = String(n);
+        var h = $("pickH");
+        if (h) {
+          h.innerHTML = n >= 3
+            ? "3つそろいました"
+            : (n === 0
+              ? "気になった作品のタグに<br>スマートフォンをかざしてください"
+              : "つぎの作品のタグに<br>かざしてください");
+        }
+        var hasNfc = "NDEFReader" in window;
+        var nfcB = $("pickNfc"), nextB = $("pickNext"), hint = $("pickHint");
+        if (nfcB) {
+          nfcB.hidden = !hasNfc || n >= 3;
+          nfcB.textContent = nfcOn ? "スキャン中です" : "スキャンをはじめる";
+          nfcB.disabled = nfcOn;
+        }
+        if (nextB) nextB.hidden = n < 3;
+        if (hint) {
+          hint.textContent = n >= 3
+            ? "えらび直すときは、スロットを長押しすると外せます。"
+            : (hasNfc
+              ? "ボタンを押してからタグに近づけると、画面が切り替わらずに読み取れます。1つめが「もっともお気に入り」になります。"
+              : "スマートフォンの上のあたりを、作品のそばにあるタグへ近づけてください。1つめが「もっともお気に入り」になります。");
+        }
       }
 
       function bindSlot(el, i) {
@@ -2095,15 +2302,15 @@
 
       function fillSlot(id) {
         if (leaflet.slots.indexOf(id) >= 0) {
-          var root = $("slots");
           var idx = leaflet.slots.indexOf(id);
-          var el = root && root.children[idx];
-          if (el) {
+          [$("slots"), $("pickSlots")].forEach(function (root) {
+            var el = root && root.children[idx];
+            if (!el) return;
             el.classList.remove("shake");
             void el.offsetWidth;
             el.classList.add("shake");
             setTimeout(function () { el.classList.remove("shake"); }, 500);
-          }
+          });
           toast("すでにえらんでいます");
           return;
         }
@@ -2133,6 +2340,8 @@
         if (back) back.hidden = (sheetSub === "sending" || sheetSub === "done");
       }
       var sheetSub = "form";   // form | sending | error | done
+      // 手順1の表示モード: false = タグにかざす全画面案内（既定） / true = コレクションから手動でえらぶ
+      var pickManual = false;
 
       /* --- 手順2: 気持ち --- */
       function buildEmotions() {
@@ -2496,6 +2705,7 @@
           await reader.scan();
           nfcOn = true;
           if (btn) { btn.classList.add("on"); btn.textContent = "スキャン中"; }
+          renderSlots();   // 全画面案内のボタン表示を「スキャン中です」に更新
           toast("タグに近づけてください");
           reader.onreadingerror = function () { toast("タグを読み取れませんでした"); };
           reader.onreading = function (ev) {
@@ -2611,14 +2821,24 @@
       function initButtons() {
         on($("leafletBtn"), "click", function () { location.hash = "leaflet"; });
         on($("slotQuit"), "click", function () { exitLeaflet(); toast("リーフレットづくりをやめました"); });
-        on($("slotNext"), "click", function () {
+        on($("pickQuit"), "click", function () { exitLeaflet(); toast("リーフレットづくりをやめました"); });
+        // 「作品を読めない場合」→ コレクションから自分で選ぶモードへ
+        on($("pickManual"), "click", function () {
+          pickManual = true;
+          syncLeafletUI();
+          toast("取得済みのカードをタップして選んでください");
+        });
+        on($("pickNfc"), "click", startNfc);
+        var goStep2 = function () {
           if (leaflet.slots.filter(Boolean).length < 3) return;
           leaflet.step = 2;
           saveLeaflet();
           syncLeafletUI();
           var sheet = $("sheet");
           if (sheet) sheet.scrollTop = 0;
-        });
+        };
+        on($("slotNext"), "click", goStep2);
+        on($("pickNext"), "click", goStep2);
         on($("sheetBack"), "click", function () {
           if (leaflet.step === 3 && sheetSub === "form") { leaflet.step = 2; saveLeaflet(); syncLeafletUI(); }
           else if (leaflet.step === 3 && sheetSub === "error") { sheetSub = "form"; renderSheetStep(); }

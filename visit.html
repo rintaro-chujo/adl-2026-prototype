@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Shippori+Mincho:wght@400;500;700&display=swap">
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Infant:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Shippori+Mincho:wght@400;500;700&family=Zen+Kaku+Gothic+Antique:wght@400;500;700&display=swap">
   <style>
     /* ============ デザイントークン ============ */
     :root {
@@ -185,35 +185,171 @@
       margin-top: 26px;
     }
 
+    /* 章見出し: 全体が「序文をひらく」ボタン */
     .sec-head {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      padding: 0 4px 16px;
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 18px 4px 14px;
       border-bottom: 1px solid var(--line);
       margin-bottom: 20px;
+      background: none;
+      color: inherit;
+      cursor: pointer;
     }
 
+    .sec-head:active { opacity: .6; }
+
     .sec-n {
+      display: block;
+      font-family: var(--en);
+      font-size: 12px;
+      letter-spacing: .2em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .sec-ja {
+      display: block;
+      font-family: "Zen Kaku Gothic Antique", var(--ja);
+      font-size: clamp(24px, 6.6vw, 34px);
+      font-weight: 700;
+      letter-spacing: .06em;
+      line-height: 1.35;
+    }
+
+    .sec-en {
+      display: block;
+      font-family: "Zen Kaku Gothic Antique", var(--en);
+      font-style: normal;
+      font-weight: 500;
+      font-size: clamp(13px, 3.4vw, 16px);
+      letter-spacing: .14em;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+
+    /* 序文への導線。見出しだけでは押せると気づけないので明示する */
+    .sec-read {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 12px;
+      padding: 8px 14px;
+      min-height: 40px;
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      font-size: 12.5px;
+      letter-spacing: .1em;
+      color: var(--ink);
+    }
+
+    .sec-read .ar {
+      width: 7px;
+      height: 7px;
+      border-right: 1px solid currentColor;
+      border-bottom: 1px solid currentColor;
+      transform: rotate(-45deg);
+    }
+
+    /* 章の序文モーダル */
+    #intro {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      background: var(--cream);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: calc(64px + var(--safe-t)) 22px calc(56px + var(--safe-b));
+      opacity: 1;
+      transition: opacity .25s ease;
+    }
+
+    #intro.leaving { opacity: 0; }
+
+    .intro-inner { max-width: 640px; margin: 0 auto; }
+
+    .intro-n {
       font-family: var(--en);
       font-size: 12px;
       letter-spacing: .2em;
       color: var(--muted);
     }
 
-    .sec-ja {
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: .12em;
+    .intro-ja {
+      font-family: "Zen Kaku Gothic Antique", var(--ja);
+      font-size: clamp(26px, 7vw, 38px);
+      font-weight: 700;
+      letter-spacing: .06em;
+      line-height: 1.4;
+      margin: 6px 0 0;
     }
 
-    .sec-en {
+    .intro-en {
+      font-family: "Zen Kaku Gothic Antique", var(--en);
+      font-size: clamp(14px, 3.6vw, 17px);
+      font-weight: 500;
+      letter-spacing: .14em;
+      margin: 2px 0 0;
+    }
+
+    .intro-lead {
+      font-size: clamp(16px, 4.4vw, 20px);
+      line-height: 1.9;
+      letter-spacing: .04em;
+      margin: 28px 0 0;
+      padding-left: 14px;
+      border-left: 2px solid var(--ink);
+    }
+
+    .intro-lead .en {
+      display: block;
       font-family: var(--en);
-      font-style: italic;
-      font-size: 12px;
-      letter-spacing: .16em;
-      color: var(--muted);
-      margin-left: auto;
+      font-size: .82em;
+      color: var(--sub);
+      margin-top: 4px;
+    }
+
+    .intro-body p {
+      font-size: 14.5px;
+      line-height: 2.1;
+      letter-spacing: .03em;
+      margin: 22px 0 0;
+      text-align: justify;
+    }
+
+    .intro-sign {
+      margin-top: 30px;
+      font-size: 13px;
+      line-height: 2;
+      letter-spacing: .06em;
+      color: var(--sub);
+      text-align: right;
+    }
+
+    .intro-closing {
+      margin-top: 34px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      font-size: 15px;
+      line-height: 2.1;
+      letter-spacing: .05em;
+      text-align: center;
+    }
+
+    .intro-close {
+      position: fixed;
+      top: calc(14px + var(--safe-t));
+      right: 18px;
+      z-index: 71;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      letter-spacing: .06em;
+      color: var(--sub);
+      padding: 8px 4px;
     }
 
     .grid {
@@ -1319,6 +1455,9 @@
   <button id="leafletBtn" class="away">気になった作品でリーフレットをつくる</button>
   <button id="nfcBtn" hidden>タグをスキャン</button>
 
+  <!-- 章の序文 -->
+  <div id="intro" hidden></div>
+
   <!-- リーフレット手順1（既定）: タグにかざす全画面案内 -->
   <div id="pickfx" hidden>
     <button class="pick-quit" id="pickQuit">やめる</button>
@@ -1793,12 +1932,19 @@
         var secs = sections.length ? sections : [{ n: 1, title: "作品", en: "Works" }];
         secs.forEach(function (s) {
           var list = works.filter(function (w) { return w.section === s.n; });
-          if (!list.length) return;
+          var hasIntro = !!(s.body && s.body.length);
+          // 作品がまだ無い章（おわりに 等）も、序文があれば見出しは出す
+          if (!list.length && !hasIntro) return;
           var sec = document.createElement("div");
           sec.className = "sec";
 
-          var head = document.createElement("div");
+          // 見出し全体がボタン。押せることが分かるよう「序文を読む」を添える
+          var head = document.createElement(hasIntro ? "button" : "div");
           head.className = "sec-head";
+          if (hasIntro) {
+            head.type = "button";
+            head.setAttribute("aria-label", (s.title || "") + " の序文を読む");
+          }
           var n = document.createElement("span");
           n.className = "sec-n";
           n.textContent = String(s.n).padStart(2, "0");
@@ -1809,6 +1955,16 @@
           en.className = "sec-en";
           en.textContent = s.en || "";
           head.append(n, ja, en);
+          if (hasIntro) {
+            var read = document.createElement("span");
+            read.className = "sec-read";
+            read.textContent = "序文を読む";
+            var ar = document.createElement("span");
+            ar.className = "ar";
+            read.appendChild(ar);
+            head.appendChild(read);
+            on(head, "click", function () { openIntro(s.n); });
+          }
 
           var grid = document.createElement("div");
           grid.className = "grid";
@@ -1818,6 +1974,91 @@
           root.appendChild(sec);
         });
         updateProgress();
+      }
+
+      /* --- 章の序文モーダル --- */
+      function openIntro(n) {
+        var s = sections.filter(function (x) { return x.n === n; })[0];
+        var el = $("intro");
+        if (!s || !el) return;
+        el.textContent = "";
+        el.classList.remove("leaving");
+
+        var close = document.createElement("button");
+        close.className = "intro-close";
+        close.textContent = "とじる";
+        on(close, "click", closeIntro);
+
+        var inner = document.createElement("div");
+        inner.className = "intro-inner";
+        var num = document.createElement("p");
+        num.className = "intro-n";
+        num.textContent = String(s.n).padStart(2, "0");
+        var ja = document.createElement("h2");
+        ja.className = "intro-ja";
+        ja.textContent = s.title || "";
+        var en = document.createElement("p");
+        en.className = "intro-en";
+        en.textContent = s.en || "";
+        inner.append(num, ja, en);
+
+        if (s.lead) {
+          var lead = document.createElement("p");
+          lead.className = "intro-lead";
+          lead.textContent = s.lead;
+          if (s.leadEn) {
+            var le = document.createElement("span");
+            le.className = "en";
+            le.textContent = s.leadEn;
+            lead.appendChild(le);
+          }
+          inner.appendChild(lead);
+        }
+
+        var body = document.createElement("div");
+        body.className = "intro-body";
+        (s.body || []).forEach(function (t) {
+          var p = document.createElement("p");
+          p.textContent = t;
+          body.appendChild(p);
+        });
+        inner.appendChild(body);
+
+        if (s.sign && s.sign.length) {
+          var sign = document.createElement("p");
+          sign.className = "intro-sign";
+          s.sign.forEach(function (t, i) {
+            if (i) sign.appendChild(document.createElement("br"));
+            sign.appendChild(document.createTextNode(t));
+          });
+          inner.appendChild(sign);
+        }
+        if (s.closing && s.closing.length) {
+          var cl = document.createElement("p");
+          cl.className = "intro-closing";
+          s.closing.forEach(function (t, i) {
+            if (i) cl.appendChild(document.createElement("br"));
+            cl.appendChild(document.createTextNode(t));
+          });
+          inner.appendChild(cl);
+        }
+
+        el.append(close, inner);
+        el.hidden = false;
+        el.scrollTop = 0;
+        document.body.classList.add("lock");
+      }
+
+      function closeIntro() {
+        var el = $("intro");
+        if (!el || el.hidden) return;
+        el.classList.add("leaving");
+        setTimeout(function () {
+          el.hidden = true;
+          el.textContent = "";
+          el.classList.remove("leaving");
+          releaseLock();
+        }, 250);
       }
 
       function makeCell(w) {
@@ -2140,8 +2381,8 @@
 
       // 詳細/ゲット演出が出ていないときだけ本体スクロールを戻す
       function releaseLock() {
-        var d = $("detail"), g = $("getfx"), p = $("pickfx");
-        if ((d && !d.hidden) || (g && !g.hidden) || (p && !p.hidden)) return;
+        var d = $("detail"), g = $("getfx"), p = $("pickfx"), i = $("intro");
+        if ((d && !d.hidden) || (g && !g.hidden) || (p && !p.hidden) || (i && !i.hidden)) return;
         document.body.classList.remove("lock");
       }
 
@@ -2932,6 +3173,15 @@
           var nb = $("nfcBtn");
           if (nb) nb.hidden = false;
         }
+
+        // Esc で序文/詳細を閉じる(PC 閲覧用)
+        on(document, "keydown", function (e) {
+          if (e.key !== "Escape") return;
+          var i = $("intro");
+          if (i && !i.hidden) { closeIntro(); return; }
+          var d = $("detail");
+          if (d && !d.hidden) closeDetail();
+        });
 
         on(window, "hashchange", route);
         route();

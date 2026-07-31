@@ -6,10 +6,27 @@ A4縦・両面で自動印刷するエージェント。依存は `pdf-lib` の�
 
 ## 1. 事前準備
 
-- Node.js（このリポジトリの `package.json` と同程度のバージョン）がインストール済みであること。
-- リポジトリをこのMacにクローン/pullし、ルートで `npm install` 済みであること。
+**`agent.mjs` だけをコピーしても動かない。** リーフレットの裏面は `data/posters/` の
+元PDFから合成するので、リポジトリごと持ってくる必要がある。
+
+```sh
+git clone https://github.com/rintaro-chujo/adl-2026-prototype.git
+cd adl-2026-prototype
+npm install
+```
+
+- Node.js 20 以上（`node -v` で確認）。
 - 対象プリンタが macOS に追加済みで、両面印刷（長辺とじ）に対応していること。
   `lpstat -p` でプリンタ名を確認する。
+
+`npm install` を忘れても、エージェントは起動時に `pdf-lib` の有無を確認して
+自動でインストールしてから続行する。起動前チェックでは他に、リポジトリ内で
+実行されているか / プリンタがあるか / API に到達できてトークンが合っているか
+も確認し、問題があれば日本語で理由を出して止まる。
+
+> よくある失敗: デスクトップに置いた `agent.mjs` を実行して
+> `Cannot find package 'pdf-lib'` や `Could not read package.json` になる。
+> 上のとおり clone したフォルダの中で実行すること。
 
 ## 2. Vercel の環境変数の値を取得
 

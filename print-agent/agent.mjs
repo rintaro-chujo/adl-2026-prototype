@@ -15,11 +15,15 @@
 //
 // env: API_BASE(既定 http://localhost:3000) / PRINT_AGENT_TOKEN / PRINTER(lp -d)
 
-import { PDFDocument } from "pdf-lib";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+
+// pdf-lib は起動時に読み込む（入っていなければ自動で npm install する）。
+// 静的 import にすると未インストール時にエラーだけ出て落ちてしまうため、あえて遅延読み込み。
+let PDFDocument = null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -28,7 +32,8 @@ const WORKS_JSON = path.join(ROOT, "data", "works.json");
 const OUT_DIR = path.join(__dirname, "out");
 const STATE_FILE = path.join(__dirname, "state.json");
 const CSV_FILE = path.join(__dirname, "survey.csv");
-const CSV_HEADER = "id,createdAt,work1,work2,work3,emotion,visit,who,satisfaction,comment";
+const CSV_HEADER =
+  "id,createdAt,work1,work2,work3,emotion,visit,who,satisfaction,comment";
 
 // A4縦(pt)。詳細は docs/SPEC_visit-impl.md の print-agent 節を参照。
 const A4_W = 595.28;
@@ -42,7 +47,13 @@ const POLL_MS = 3000;
 
 // ---------- CLI 引数 ----------
 function parseArgs(argv) {
-  const args = { dryRun: false, once: false, retryFailed: false, since: null, api: null };
+  const args = {
+    dryRun: false,
+    once: false,
+    retryFailed: false,
+    since: null,
+    api: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--dry-run") args.dryRun = true;
@@ -55,8 +66,11 @@ function parseArgs(argv) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const API_BASE = args.api || process.env.API_BASE || "http://localhost:3000";
-const TOKEN = process.env.PRINT_AGENT_TOKEN || "";
+const API_BASE =
+  args.api || process.env.API_BASE || "https://adl-2026-prototype.vercel.app";
+const TOKEN =
+  process.env.PRINT_AGENT_TOKEN ||
+  "b7d0ea7d39873276233dcac7960ad8a3fbf2b075c61dcc3f";
 const PRINTER = process.env.PRINTER || "";
 
 // ---------- state.json ----------
@@ -77,19 +91,24 @@ function csvField(v) {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 async function appendSurveyRow(job) {
-  const exists = await readFile(CSV_FILE, "utf8").then(() => true).catch(() => false);
-  const row = [
-    job.id,
-    new Date(job.meta.createdAt).toISOString(),
-    job.meta.workIds[0],
-    job.meta.workIds[1],
-    job.meta.workIds[2],
-    job.meta.emotion,
-    job.meta.survey.visit,
-    job.meta.survey.who,
-    job.meta.survey.satisfaction,
-    job.meta.survey.comment,
-  ].map(csvField).join(",") + "\r\n";
+  const exists = await readFile(CSV_FILE, "utf8")
+    .then(() => true)
+    .catch(() => false);
+  const row =
+    [
+      job.id,
+      new Date(job.meta.createdAt).toISOString(),
+      job.meta.workIds[0],
+      job.meta.workIds[1],
+      job.meta.workIds[2],
+      job.meta.emotion,
+      job.meta.survey.visit,
+      job.meta.survey.who,
+      job.meta.survey.satisfaction,
+      job.meta.survey.comment,
+    ]
+      .map(csvField)
+      .join(",") + "\r\n";
   if (!exists) await writeFile(CSV_FILE, CSV_HEADER + "\r\n" + row);
   else await writeFile(CSV_FILE, row, { flag: "a" });
 }
@@ -143,12 +162,18 @@ async function buildPdf(job, frontBuf) {
   const subIds = [subId1, subId2];
   for (let i = 0; i < 2; i++) {
     const work = worksById.get(subIds[i]);
-    if (!work) throw new Error(`works.json に見つからない workId: ${subIds[i]}`);
+    if (!work)
+      throw new Error(`works.json に見つからない workId: ${subIds[i]}`);
     const bytes = await readFile(path.join(POSTERS_DIR, work.pdf));
     const srcDoc = await PDFDocument.load(bytes);
     const srcPage = srcDoc.getPages()[0];
     const embedded = await pdfDoc.embedPage(srcPage, LEFT_HALF_BOX);
-    p2.drawPage(embedded, { x: i * SLOT_W, y: 0, width: SLOT_W, height: HALF_H });
+    p2.drawPage(embedded, {
+      x: i * SLOT_W,
+      y: 0,
+      width: SLOT_W,
+      height: HALF_H,
+    });
   }
 
   return pdfDoc.save();
@@ -158,12 +183,16 @@ async function buildPdf(job, frontBuf) {
 async function fetchJobs(after) {
   const url = new URL("/api/print-jobs", API_BASE);
   if (after) url.searchParams.set("after", after);
-  const res = await fetch(url, { headers: TOKEN ? { "x-agent-token": TOKEN } : {} });
+  const res = await fetch(url, {
+    headers: TOKEN ? { "x-agent-token": TOKEN } : {},
+  });
   if (!res.ok) throw new Error(`GET /api/print-jobs failed: ${res.status}`);
   return res.json();
 }
 async function fetchFront(frontUrl) {
-  const res = await fetch(frontUrl, { headers: TOKEN ? { "x-agent-token": TOKEN } : {} });
+  const res = await fetch(frontUrl, {
+    headers: TOKEN ? { "x-agent-token": TOKEN } : {},
+  });
   if (!res.ok) throw new Error(`front.jpg 取得失敗: ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
@@ -176,14 +205,18 @@ function printPdf(filePath) {
   const result = spawnSync("lp", lpArgs, { encoding: "utf8" });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`lp failed (status ${result.status}): ${result.stderr || result.stdout}`);
+    throw new Error(
+      `lp failed (status ${result.status}): ${result.stderr || result.stdout}`,
+    );
   }
   console.log(`[print-agent] lp 送信: ${result.stdout.trim()}`);
 }
 
 // ---------- 1ジョブ処理 ----------
 async function processJob(job) {
-  console.log(`[print-agent] 処理開始 id=${job.id} works=${job.meta.workIds.join(",")}`);
+  console.log(
+    `[print-agent] 処理開始 id=${job.id} works=${job.meta.workIds.join(",")}`,
+  );
   const frontBuf = await fetchFront(job.frontUrl);
   const pdfBytes = await buildPdf(job, frontBuf);
 
@@ -230,8 +263,98 @@ async function pollOnce(state) {
   await saveState(state);
 }
 
+// ---------- 起動前チェック ----------
+// 会場のPCで「必要なものが揃っていない」まま動かして気づけない事故を防ぐ。
+// 依存が無ければその場で入れ、それ以外の不足は日本語で理由を出して止める。
+function npmInstall(pkgArgs) {
+  const r = spawnSync("npm", pkgArgs, { cwd: ROOT, stdio: "inherit", encoding: "utf8" });
+  return !r.error && r.status === 0;
+}
+
+async function ensureDeps() {
+  try {
+    ({ PDFDocument } = await import("pdf-lib"));
+    return;
+  } catch (e) {
+    if (e && e.code !== "ERR_MODULE_NOT_FOUND") throw e;
+  }
+  // ここに来る＝pdf-lib が無い。package.json があれば一括、無ければ pdf-lib だけ入れる。
+  const hasPkgJson = existsSync(path.join(ROOT, "package.json"));
+  console.log(`[print-agent] pdf-lib が見つかりません。${hasPkgJson ? "npm install" : "npm install pdf-lib"} を実行します…`);
+  const ok = npmInstall(hasPkgJson ? ["install"] : ["install", "pdf-lib"]);
+  if (!ok) {
+    throw new Error(
+      "依存パッケージのインストールに失敗しました。ネットにつながっているか、" +
+      `このフォルダ（${ROOT}）に書き込めるかを確認してください。`
+    );
+  }
+  ({ PDFDocument } = await import("pdf-lib"));
+  console.log("[print-agent] pdf-lib を用意しました");
+}
+
+function checkFiles() {
+  const missing = [];
+  if (!existsSync(WORKS_JSON)) missing.push(path.relative(ROOT, WORKS_JSON));
+  if (!existsSync(POSTERS_DIR)) missing.push(path.relative(ROOT, POSTERS_DIR) + "/（作品PDF）");
+  if (missing.length) {
+    throw new Error(
+      "リポジトリの中で実行してください。見つからないもの: " + missing.join(", ") + "\n" +
+      "  リーフレットの裏面は data/posters の元PDFから作るため、agent.mjs 単体では動きません。\n" +
+      "  git clone https://github.com/rintaro-chujo/adl-2026-prototype.git\n" +
+      "  cd adl-2026-prototype && npm install"
+    );
+  }
+}
+
+function checkPrinter() {
+  if (args.dryRun) return;
+  const r = spawnSync("lp", ["-h"], { encoding: "utf8" });
+  if (r.error) {
+    console.warn("[print-agent] 警告: lp コマンドが見つかりません。印刷できない可能性があります");
+    return;
+  }
+  const st = spawnSync("lpstat", ["-p"], { encoding: "utf8" });
+  const out = (st.stdout || "").trim();
+  if (!out) {
+    console.warn("[print-agent] 警告: プリンターが1台も見つかりません（システム設定で追加してください）");
+  } else if (PRINTER && out.indexOf(PRINTER) < 0) {
+    console.warn(`[print-agent] 警告: PRINTER=${PRINTER} が見つかりません。利用可能:\n${out}`);
+  }
+}
+
+async function preflight() {
+  console.log(`[print-agent] Node ${process.version}`);
+  checkFiles();   // 先に置き場所を確かめる（単体コピー実行で無関係な場所に install しないため）
+  await ensureDeps();
+  checkPrinter();
+  if (!TOKEN) {
+    console.warn("[print-agent] 警告: PRINT_AGENT_TOKEN が未設定です（本番では設定してください）");
+  }
+  // API に到達できるかを先に確かめる（URL の打ち間違いやトークン違いをここで気づけるように）
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/print-jobs`, {
+      headers: TOKEN ? { "x-agent-token": TOKEN } : {},
+    });
+  } catch (e) {
+    throw new Error(`API に接続できません（${API_BASE}）: ${e.message}\n` +
+      "  --api か環境変数 API_BASE で正しい URL を指定してください。\n" +
+      "  例: API_BASE=https://adl-exhibition-2026.vercel.app");
+  }
+  if (res.status === 401) {
+    throw new Error(
+      "API の認証に失敗しました（401）。PRINT_AGENT_TOKEN が Vercel 側の設定と一致していません。\n" +
+      "  Vercel ダッシュボード → Settings → Environment Variables の値と同じものを指定してください。"
+    );
+  }
+  if (!res.ok) throw new Error(`API が ${res.status} を返しました（${API_BASE}）`);
+  const jobs = await res.json().catch(() => null);
+  console.log(`[print-agent] API 接続OK ${API_BASE}（未処理ジョブ ${Array.isArray(jobs) ? jobs.length : "?"} 件）`);
+}
+
 // ---------- main ----------
 async function main() {
+  await preflight();
   const state = await loadState();
   if (args.since) state.lastId = args.since;
 

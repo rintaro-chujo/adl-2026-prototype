@@ -190,7 +190,7 @@
       display: block;
       width: 100%;
       text-align: left;
-      padding: 18px 4px 14px;
+      padding: 14px 4px;
       border-bottom: 1px solid var(--line);
       margin-bottom: 20px;
       background: none;
@@ -200,14 +200,6 @@
 
     .sec-head:active { opacity: .6; }
 
-    .sec-n {
-      display: block;
-      font-family: var(--en);
-      font-size: 12px;
-      letter-spacing: .2em;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
 
     .sec-ja {
       display: block;
@@ -270,12 +262,6 @@
 
     .intro-inner { max-width: 640px; margin: 0 auto; }
 
-    .intro-n {
-      font-family: var(--en);
-      font-size: 12px;
-      letter-spacing: .2em;
-      color: var(--muted);
-    }
 
     .intro-ja {
       font-family: "Zen Kaku Gothic Antique", var(--ja);
@@ -1945,16 +1931,13 @@
             head.type = "button";
             head.setAttribute("aria-label", (s.title || "") + " の序文を読む");
           }
-          var n = document.createElement("span");
-          n.className = "sec-n";
-          n.textContent = String(s.n).padStart(2, "0");
           var ja = document.createElement("span");
           ja.className = "sec-ja";
           ja.textContent = s.title || "";
           var en = document.createElement("span");
           en.className = "sec-en";
           en.textContent = s.en || "";
-          head.append(n, ja, en);
+          head.append(ja, en);
           if (hasIntro) {
             var read = document.createElement("span");
             read.className = "sec-read";
@@ -1991,16 +1974,13 @@
 
         var inner = document.createElement("div");
         inner.className = "intro-inner";
-        var num = document.createElement("p");
-        num.className = "intro-n";
-        num.textContent = String(s.n).padStart(2, "0");
         var ja = document.createElement("h2");
         ja.className = "intro-ja";
         ja.textContent = s.title || "";
         var en = document.createElement("p");
         en.className = "intro-en";
         en.textContent = s.en || "";
-        inner.append(num, ja, en);
+        inner.append(ja, en);
 
         if (s.lead) {
           var lead = document.createElement("p");

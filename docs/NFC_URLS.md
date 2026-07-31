@@ -12,7 +12,7 @@
 
 > ⚠️ **URLのドメインが変わるとタグは全部書き直しです。** 書き込み前にドメイン確定を確認してください。
 
-## 全40タグ
+## 全41タグ
 
 ### 01 はじめに / Introduction
 
@@ -79,6 +79,12 @@
 | 39 | WANTAG | `https://adl-exhibition-2026.vercel.app/visit.html#g/w39` |
 | 40 | 小さな生活文化からのスペキュレーション | `https://adl-exhibition-2026.vercel.app/visit.html#g/w40` |
 
+### 06 おわりに / Conclusion
+
+| 番号 | 作品名 | 書き込む URL |
+|---|---|---|
+| 41 | Peaflet | `https://adl-exhibition-2026.vercel.app/visit.html#g/w41` |
+
 ## コピペ用（番号順・URLのみ）
 
 ```
@@ -122,6 +128,7 @@ https://adl-exhibition-2026.vercel.app/visit.html#g/w37
 https://adl-exhibition-2026.vercel.app/visit.html#g/w38
 https://adl-exhibition-2026.vercel.app/visit.html#g/w39
 https://adl-exhibition-2026.vercel.app/visit.html#g/w40
+https://adl-exhibition-2026.vercel.app/visit.html#g/w41
 ```
 
 ## 参考: タグ以外のURL

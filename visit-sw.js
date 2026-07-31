@@ -1,6 +1,6 @@
 // 来場者アプリ visit.html の Service Worker
 // VERSION を上げるとキャッシュを作り直す(バスト)。
-const VERSION = "v5";
+const VERSION = "v6";
 const CORE_CACHE = `pmv-core-${VERSION}`;
 const POSTER_CACHE = `pmv-posters-${VERSION}`;
 

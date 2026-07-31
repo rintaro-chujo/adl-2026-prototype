@@ -14,7 +14,7 @@
 
 ## 全40タグ
 
-### 01 はじめに
+### 01 はじめに / Introduction
 
 | 番号 | 作品名 | 書き込む URL |
 |---|---|---|
@@ -38,7 +38,7 @@
 | 13 | MechAnima | `https://adl-exhibition-2026.vercel.app/visit.html#g/w13` |
 | 14 | Cyborg Things | `https://adl-exhibition-2026.vercel.app/visit.html#g/w14` |
 
-### 03 こころを育む / Subjectivity
+### 03 こころとデザインする / Method
 
 | 番号 | 作品名 | 書き込む URL |
 |---|---|---|
@@ -47,7 +47,7 @@
 | 17 | 神様のきまぐれWS | `https://adl-exhibition-2026.vercel.app/visit.html#g/w17` |
 | 18 | 終わりから始まる愛のWS | `https://adl-exhibition-2026.vercel.app/visit.html#g/w18` |
 
-### 04 こころとデザインする / Method
+### 04 こころを育む / Subjectivity
 
 | 番号 | 作品名 | 書き込む URL |
 |---|---|---|

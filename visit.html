@@ -105,6 +105,8 @@
       left: 24px;
       top: calc(30px + var(--safe-t));
       height: min(33vh, 300px);
+      /* 内在サイズに頼らず比率を明示する（iOS の PWA で width:auto が 0 に潰れた） */
+      aspect-ratio: 540 / 612;
       width: auto;
       pointer-events: none;
     }
@@ -114,6 +116,7 @@
       right: 22px;
       bottom: 112px;
       width: min(60vw, 300px);
+      aspect-ratio: 593 / 288;
       height: auto;
       pointer-events: none;
     }
@@ -438,6 +441,7 @@
 
     #fxCard .back img {
       width: 78%;
+      aspect-ratio: 593 / 288;
       height: auto;
       opacity: .75;
     }
@@ -1149,11 +1153,13 @@
 
     #myview .mv-head .ja {
       height: 128px;
+      aspect-ratio: 540 / 612;
       width: auto;
     }
 
     #myview .mv-head .en {
       width: min(46vw, 220px);
+      aspect-ratio: 593 / 288;
       height: auto;
       margin-bottom: 4px;
     }
@@ -1440,6 +1446,7 @@
     <button id="dbgScan">スキャン模擬</button>
     <button id="dbgRandom">ランダム5作品取得</button>
     <button id="dbgClear">全消去</button>
+    <p id="dbgInfo" style="font-size:10px;line-height:1.5;color:var(--muted);margin:6px 0 0;word-break:break-all"></p>
   </div>
 
   <script src="assets/visit/qr.js"></script>
@@ -1461,6 +1468,7 @@
       var PRINT_W = 2480, PRINT_H = 3508;
 
       var $ = function (id) { return document.getElementById(id); };
+      var $$ = function (sel) { return document.querySelector(sel); };
       var on = function (el, ev, fn, opts) { if (el && el.addEventListener) el.addEventListener(ev, fn, opts); };
       var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
       var nextPaint = function () {
@@ -2757,6 +2765,26 @@
           refreshHero();
           toast("5作品を追加しました");
         });
+        // 実機での切り分け用: ぼかし経路とタイトル画像の実寸を出す
+        var info = $("dbgInfo");
+        if (info) {
+          var fmt = function (sel) {
+            var e = $$(sel);
+            if (!e) return sel + ":なし";
+            var r = e.getBoundingClientRect();
+            return sel + " nat" + e.naturalWidth + "x" + e.naturalHeight +
+              " box" + Math.round(r.width) + "x" + Math.round(r.height);
+          };
+          var upd = function () {
+            var b = (LG && LG.blurInfo) ? LG.blurInfo() : {};
+            info.textContent = "blur:" + b.canvas + "/" + (b.nativeBlur ? "native" : "fallback") +
+              " | standalone:" + (window.matchMedia("(display-mode: standalone)").matches ||
+                window.navigator.standalone ? "yes" : "no") +
+              " | " + fmt(".hero-ja") + " | " + fmt(".hero-en");
+          };
+          upd();
+          setTimeout(upd, 1500);
+        }
         on($("dbgClear"), "click", function () {
           collection = {};
           saveCollection();

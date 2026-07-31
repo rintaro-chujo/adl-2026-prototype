@@ -21,8 +21,13 @@ async function fontCss(family, weight, text) {
   return css;
 }
 
-const svgFile = (viewBox, css, body) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">\n<style>${css}</style>\n${body}\n</svg>\n`;
+// width/height を必ず入れる。viewBox だけだと WebKit が <img> の width:auto を
+// 0 に潰すことがあり、iOS の PWA でタイトルが消える原因になった。
+const svgFile = (viewBox, css, body) => {
+  const [, , w, h] = viewBox.split(/\s+/).map(Number);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${w}" height="${h}">\n` +
+    `<style>${css}</style>\n${body}\n</svg>\n`;
+};
 
 // --- 日本語タイトル(縦書き4列) ---
 {
